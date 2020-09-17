@@ -1,0 +1,108 @@
+* Job Partitioning Investigation LabBook
+* General Overview and Some Thouhts
+** The research question
+If HPC jobs (especially large ones) could be partitioned on either (or both) the
+time and cores axis ahead of time, that is, on job submittion time, what happens
+with the overall backfilling scheduling performance?
+** Debating about the research question
+*** What we want to do?
+We want to continue using backfilling algorithms, but for large jobs (following
+a certain large criterion), we could partition these large jobs in the following
+possibilities:
+1. *On the time axis:* The job is split in time by time periods, either by a fixed
+   amount of time (i.e. 1 hour) or relative to the job's walltime (i.e. half, or
+   a quarter of the walltime). The fractions of the jobs are jobs with
+   precedence constraints, and the fractions are submitted after the completion
+   of the precedent fraction;
+2. *On the cores axis:* The job is split by the number of cores, either by a fixed
+   amount (i.e. four cores) or relative to the number of cores required by the
+   job (i.e. a half or a quarter of the number of cores). The fractions of the
+   job are independent jobs that are all submitted at the original job's
+   submittion time;
+3. *On both time and cores axis:* The jobs is split by both the time and cores
+   axis, following the rules mentioned above. Fractions that are run on a
+   certain core $i$ have precedence constraints, but they are independent to the
+   fractions that are processed in other cores.
+
+In all of these scenarios, the original job is considered to be completed when
+the last fraction finishes its processing.
+*** Is this partitioning feasible?
+Partitioning on the time axis is more feasible, by saving the job execution
+state, and may not require the user's intervention to enable this
+feature. Partitioning on the cores axis is less feasible, depending on the
+application communication pattern, and may require user intervention into the
+application to enable this feature. Though it is nevertheless interesting to
+investigate.
+*** Why we want to mess around with the jobs' structure?
+Because Backfilling algorithms (wither EASY or Conservative) are by far the most
+accepted scheduling policies. Changing the policy itself is considered a very
+risky move, so people don't do it. The point here is that, perhaps by changing
+the jobs's structure we can increase the overall scheduling performance of
+backfilling algorithms. It is one way to increase scheduling performance, while
+keeping backfilling.
+*** Why doing job partitioning?
+Large jobs can risk to ``stuck'' the platform, stuck jobs will need to wait for
+the large job to finish in order to be processed, this may result of many jobs
+(especially small ones) to wait for a long time, drastically increasing the
+scheduling metrics (any metric, waiting time, flow, time or slowdown). This
+phenomenon was mentioned by Mr. Feitelson himself during JSSPP 2020.
+
+This problem is often solved by exclusively allocating a partition of the
+platform for small jobs. This strategy assures that ``small jobs keep flowing''
+in the patform, but it is still a strict strategy, since the ``flow rate'' is
+bound by the size of the partition for small jobs. We can perhaps use the whole
+platform to keep these small jobs flowing by partitioning the large jobs. 
+*** Is it not just job preemption?
+This idea is quite related to job preemption. There are some studies that use
+preemption in backfilling. This first one
+([[http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.186.7780&rep=rep1&type=pdf]])
+Uses preemption to run jobs in the ``holes'' of the schedule. If this small jobs
+take more time to process to the available hole, they get preempted. It's a
+different preemption strategy than the one that we are proposing.
+
+Another quite related work is this one
+([[https://www.mcs.anl.gov/~kettimut/publications/ijhpcn.pdf]]). They define several
+rules to enable a job in the queue to actually force a preemption of a job that
+is currently running. This is quite invasive, in terms o job interference during
+scheduling, and perhaps a worse interference than, for instance, sorting the jobs
+using SAF or SPF. Partitioning large jobs is a less invasive job preemption
+strategy, since the preemptions are planned ahead of time, and no other job can
+interfere and induce a job preemption.
+
+Both works don't account the possibility of partitioning the jobs on the cores
+axis as well. This second possibility has limited applicability, since fewer
+applications can actually be partitioned on the cores axis, but it is
+nonetheless interesting, because there exist applications that can be
+partitioned in such way, and it would be interesting to see if we can get
+performance inprovements into the scheduling, if we use this second strategy as
+well. We can also evaluate which possility is better, partitioning on the time,
+or partitioning on the cores axis.
+*** What can we expect by doing this job partitioning?
+We can expect the following effects into the scheduling:
+1. Partitioning on the time axis may alleviate the effects of poor runtime
+   estimates. Only the last job fraction will have innacuracy in regards to its
+   processing time. All other fractions will be 100% accurate (since the
+   original job will not be finished yet). This can help backfilling to be more
+   effective;
+2. It will create sort of ``breathing windows'' in the platform, when large
+   jobs are processed. This may reduce the cases where the platform is not
+   capable of processing small jobs, making them ``stuck'', when large jobs are
+   being processed in the platform;
+3. Large jobs will take longer to be processed, since all fractions will need to
+   be scheduled, and thus they will wait more, when compared to the whole
+   execution of the job at once. However, the increase in waiting time for the
+   long jobs mey not be large, in comparison with their processing time
+   (slowdown), and the benefits on the global scheduling may outweigh this
+   negative effect.
+*** Some thoughts about the approach
+- I hope that partitioning on the time axis benefits scheduling, since this
+  technique could be easily implmented in the RJMSs, with no direct intervention
+  of the users to enable this feature.
+- It beneits the ``job fairness'' of the platform. Using FCFS the large jobs
+  interfere, since they can clog the platform. To alleviate this we could change
+  the policy, and use SAF for instance. But then the small jobs will interfere
+  in the large ones, these small jobs will delay the large ones.
+- Although large jobs may take more to be processed, if job partitioning is
+  beneficial to the global scheduling, the platform maintainer could reward the
+  users that allow their large jobs to be partitioned. Maintainers can, for
+  instance, make discounts of user's cores $\cdot$ hour quotas.
