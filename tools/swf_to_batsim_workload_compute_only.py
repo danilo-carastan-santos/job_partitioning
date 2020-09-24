@@ -68,8 +68,10 @@ def generate_workload(input_swf, output_json, computation_speed,
             if given_walltime_only:
                 walltime = float(res.group(SwfField.REQUESTED_TIME.value))
 
-            if nb_res > 0 and walltime >= run_time and run_time > 0 and submit_time >= 0:
-            #if True:
+            #if nb_res > 0 and walltime >= run_time and run_time > 0 and submit_time >= 0:
+            #removing the walltime >= run_time because some jobs ends just few seconds
+            #after the walltime
+            if nb_res > 0 and run_time > 0 and submit_time >= 0:
                 profile = int(((run_time // job_grain) + 1) * job_grain)
                 profiles.add(profile)
 

@@ -447,42 +447,16 @@ df_partitioned_workload
 #+end_example
 
 #+begin_src python :results output :session *python* :exports both
-df_partitioned_workload.to_csv('./workloads/partitioned_test_mustang_release_v0.2.0_66.swf', 
+df_renamed_jobs.to_csv('./workloads/renamed_test_mustang_release_v0.2.0_66.swf', 
                                sep=' ', header=False, index=False)
 #+end_src
 
-#+RESULTS:
-
-** <2020-09-23 Qua> Preparing the workloads for Batsim
-I used the converter script ~tools/swf_to_batsim_workload_compute_only.py~ to
-convert the swf test workload files to a json file that can be read by
-Batsim. I obtained this script from the Batsim installation and i only did the
-following changes:
-
-1. Changed the parsing regex to accept word characters, and not just numbers;
-2. Made it to print the ~job_id~ with the same value of the swf file, and not a
-   sequential number;
-3. Made so that the script does not discard jobs with the runtime equal to the
-   walltime.
-
-I generatd the partitioned test workload with the following command:
+Now, to generate the Batsim workload file
 
 #+begin_src shell :session *shell* :results output :exports both 
-python swf_to_batsim_workload_compute_only.py -v -cs 1e6 -pf 38400 \
-../workloads/partitioned_test_mustang_release_v0.2.0_66.swf        \
-../workloads/partitioned_test_mustang_release_v0.2.0_66.json
-#+end_src 
+ python swf_to_batsim_workload_compute_only.py -v -cs 1e6 -pf 38400 \
+../workloads/renamed_test_mustang_release_v0.2.0_66.swf            \
+../workloads/renamed_test_mustang_release_v0.2.0_66.json
+#+end_src
 
-The ~-cs~ argument stands for computing speed. It's the speed of the machines in
-FLOPS. *This same value must be set in the platform .xml file to simulate with
-Batsim*. The ~-pf~ stands for platform size, and it's the number of cores of the
-platform. The value was set as the number of cores of the mustang platform, and
-the same value must be set in the .xml platorm file as well.
-
-Now i need to do the same with the original test swf filem but the problem is
-that the first column of that file is the pandas index, which is misunderstood
-in the converting script. I need to remove that first column, rename the ~job_ids~
-to reflect the ones in the partitioned trace, and save the swf without the index
-column.
-
-
+And we are all set to run the workloads with Batsim.
