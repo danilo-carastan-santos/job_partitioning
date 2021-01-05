@@ -460,3 +460,37 @@ Now, to generate the Batsim workload file
 #+end_src
 
 And we are all set to run the workloads with Batsim.
+
+** <2021-01-05 Ter> Quest to compile install Batsim
+Batsim is using ~meson~ and ~ninja~ to build now, ~CMake~ is deprecated, though it may
+still work, didn't try using ~CMake~.
+
+I installed ~meson~ and ~ninja~ using ~conda~ in PCAD.
+
+Batsim complained about ~gcc~. I installed a ~gcc~ using ~conda install gcc~. Batsim
+stopped complaining.
+
+I need to build ~SimGrid~ as well. Using stable build.
+
+~SimGrid~ complained about boost. I installed ~conda install libboost~ and it
+stopped complaining.
+
+Intalled simgrid under ~$HOME/simgrid.~ 
+
+The installation batsim command
+
+#+BEGIN_SRC 
+meson build --prefix=/home/users/dancarastan/batsim_build
+#+END_SRC
+
+Still complains about simgrid. Both exports below didn't work.
+
+#+BEGIN_SRC 
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/users/dancarastan/simgrid/lib
+export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:/home/users/dancarastan/simgrid/lib
+#+END_SRC
+
+It seems that ~BatSim~ needs simgrid installed as a ~pkgconfig~ package, wtf?
+
+
+
