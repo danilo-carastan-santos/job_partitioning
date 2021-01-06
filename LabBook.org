@@ -492,5 +492,32 @@ export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:/home/users/dancarastan/simgrid/lib
 
 It seems that ~BatSim~ needs simgrid installed as a ~pkgconfig~ package, wtf?
 
+I needed that ~pkg-config~ looked at the simgrid ~.pc~ file (the file that Millian
+made for simgrid). I did this by changing the environment variable
 
+#+BEGIN_SRC 
+export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/home/users/dancarastan/pkgconfig
+#+END_SRC
 
+I'm putting all of the ~.pc~ files on ~/home/users/dancarastan/pkgconfig~.
+
+I had to rename ~simgrid.pc.in~ to ~simgrid.pc~ as well. But now the meson commands
+recognizes simgrid!
+
+I'm still probaly going to need to set the export below
+
+#+BEGIN_SRC 
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/users/dancarastan/simgrid/lib
+#+END_SRC
+
+I had to install ~rapidjson~ with conda as well. Batsim didn't recognize it though
+
+Built ~rapidjson~ from scratch, added updated ~LD_LIBRARY_PATH~, and added the ~.pc~
+file in the ~pkgconfig~ dir.
+
+#+BEGIN_SRC 
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/users/dancarastan/rapidjson/lib
+#+END_SRC
+
+Rapidjson worked, but there are other dependencies that need to be resolved and
+without ~apt~ access or access to install ~nix~ i simply can't compile Batsim.
