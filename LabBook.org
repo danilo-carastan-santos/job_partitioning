@@ -521,3 +521,46 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/users/dancarastan/rapidjson/lib
 
 Rapidjson worked, but there are other dependencies that need to be resolved and
 without ~apt~ access or access to install ~nix~ i simply can't compile Batsim.
+
+Now i tried to run batsim with ~Nix~. I managed to install ~Nix~ without root
+permissions using Olivier's script
+https://github.com/oar-team/nix-user-chroot-companion
+
+The script only worked at PCAD frontend, as Olivier mentioned.
+
+Got this error when building ~proot~ (idk why i needed proot but is seems to be
+the case lol)
+
+#+BEGIN_SRC 
+./configure: line 6425: `                      ac_cv_prog_cc_stdc=$ac_cv_prog_cc_c89'
+builder for '/nix/store/zkys9kylllxsrhciwi8hjzvmdhzmf7hx-coreutils-8.32-x86_64-unknown-linux-musl.drv' failed with exit code 2
+cannot build derivation '/nix/store/n7aj12x10bmp9kbskwhckjjw9zmi90vs-proot-20190510-x86_64-unknown-linux-musl.drv': 1 dependencies couldn't be built
+error: build of '/nix/store/n7aj12x10bmp9kbskwhckjjw9zmi90vs-proot-20190510-x86_64-unknown-linux-musl.drv' failed
+#+END_SRC
+
+I'm dropping this whole nix thing, last attempt is using docker. The good news
+is that now i have nix available on PCAD frontend.
+
+It worked with docker, following Batsim installation tutorial. Docker works on
+the following PCAD nodes
+
+#+BEGIN_EXAMPLE
+[10:34, 08/01/2021] Matheus Serpa: tem na blaise,  draco4, draco5, draco6, draco
+[10:34, 08/01/2021] Matheus Serpa: draco7*
+[10:34, 08/01/2021] Matheus Serpa: orion1
+[10:34, 08/01/2021] Matheus Serpa: orion3
+[10:34, 08/01/2021] Matheus Serpa: orion2*
+[10:34, 08/01/2021] Matheus Serpa: tupi1, tupi2
+#+END_EXAMPLE
+
+I sent the following message on the Batsim Telegram group
+
+#+BEGIN_EXAMPLE
+Bon, sur ma quête pour faire tourner Batsim:
+- J'ai réussi à faire tourner nix par https://github.com/oar-team/nix-user-chroot-companion mais uniquement sur le frontend de la plate-forme. Apparemment les user namespaces sont aussi activées dans les noeuds spécifiques, mais le script ne fonctionne pas. J'ai pas bien compris le truc de proot
+- Batsim avec Docker a marché mais je suis arrivé sur un outre problème: J'arrive pas à compiler batsched, de même façon que j'arrive pas à compiler Batsim
+- Est-ce qu'il y a par hazard une image docker de batsched? héhé
+- Sinon, est-ce que pybatsim implémente conservative backfilling?
+#+END_EXAMPLE
+
+Let's see what they will answer.
