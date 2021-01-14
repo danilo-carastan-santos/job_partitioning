@@ -564,3 +564,55 @@ Bon, sur ma quête pour faire tourner Batsim:
 #+END_EXAMPLE
 
 Let's see what they will answer.
+
+Olivier asked
+
+#+BEGIN_EXAMPLE
+Danilo tu as eu quoi comme erreur avec  user-chroot-companion sur les noeuds ? ( tu dois être mon premier utilisateur et quand on sait comment je code :wink: )
+#+END_EXAMPLE
+
+I have now to reproduce the error to show him.
+
+Reproducing
+
+The user namespace seems to work
+
+#+BEGIN_EXAMPLE
+(base) dancarastan@draco7:~/nix-user-chroot-companion$ grep CONFIG_USER_NS /boot/config-$(uname -r)
+CONFIG_USER_NS=y
+#+END_EXAMPLE
+
+#+BEGIN_EXAMPLE
+(base) dancarastan@draco7:~/nix-user-chroot-companion$ ./nix-user-chroot.sh 
+Need user namespace feature, you can enable it with the following command:
+sudo sysctl -w kernel.unprivileged_userns_clone=1
+#+END_EXAMPLE
+
+By deleting the if lines i get the following error with the ~nix-chroot-companion~
+
+#+BEGIN_EXAMPLE
+Activate Nix
+thread 'main' panicked at 'unshare failed: Sys(EPERM)', src/main.rs:97:5
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+thread 'main' panicked at 'failed to remove temporary directory: /tmp/.tmpsG8ULR', src/main.rs:200:21
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+#+END_EXAMPLE
+
+Let's see what Olivier answers.
+
+Olivier answered
+
+#+BEGIN_EXAMPLE
+Le simple c'est demander l'activation des user namespace sur les noeuds surtourt ils  sont disponibles sur la frontend... sinon c'est l'approche via proot mais c'est bofbof
+#+END_EXAMPLE
+
+Michael Mercier answered
+
+#+BEGIN_EXAMPLE
+Ca veux dire que les user namespaces sont bien dans le kernel mais désactivé sur la machine :/
+#+END_EXAMPLE
+
+and that makes total sense. Now i have to see with Serpa if they can activate
+user namespaces on the machines. Serpa will check this
+
+Serpa installed batsim and batsched with nix (apparently) on turing
