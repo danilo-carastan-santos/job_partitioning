@@ -1,8 +1,0 @@
-batcmd: batsim -p ../../platforms/mustang_release_v0.2.0.xml -w ../../workloads/test_mustang_release_v0.2.0_66_small.json
-  -e ./
-failure-timeout: 5
-output-dir: /tmp/expe-out
-ready-timeout: 10
-schedcmd: batsched -v easy_bf
-simulation-timeout: 604800
-success-timeout: 3600
