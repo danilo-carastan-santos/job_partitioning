@@ -1,0 +1,803 @@
+#+TITLE: Job Partitioning Investigation LabBook
+#+AUTHOR: Danilo Carastan-Santos
+#+LATEX_HEADER: \usepackage[margin=2cm,a4paper]{geometry}
+#+STARTUP: overview indent
+#+TAGS: noexport(n) deprecated(d)
+#+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport
+#+SEQ_TODO: TODO(t!) STARTED(s!) WAITING(w!) | DONE(d!) CANCELLED(c!) DEFERRED(f!)
+
+* History
+** <2020-09-09 Qua> The research question
+If HPC jobs (especially large ones) could be partitioned on either (or both) the
+time and cores axis ahead of time, that is, on job submittion time, what happens
+with the overall backfilling scheduling performance?
+** <2020-09-09 Qua> Debating about the research question
+*** What we want to do?
+We want to continue using backfilling algorithms, but for large jobs (following
+a certain large criterion), we could partition these large jobs in the following
+possibilities:
+1. *On the time axis:* The job is split in time by time periods, either by a fixed
+   amount of time (i.e. 1 hour) or relative to the job's walltime (i.e. half, or
+   a quarter of the walltime). The fractions of the jobs are jobs with
+   precedence constraints, and the fractions are submitted after the completion
+   of the precedent fraction;
+2. *On the cores axis:* The job is split by the number of cores, either by a fixed
+   amount (i.e. four cores) or relative to the number of cores required by the
+   job (i.e. a half or a quarter of the number of cores). The fractions of the
+   job are independent jobs that are all submitted at the original job's
+   submittion time;
+3. *On both time and cores axis:* The jobs is split by both the time and cores
+   axis, following the rules mentioned above. Fractions that are run on a
+   certain core $i$ have precedence constraints, but they are independent to the
+   fractions that are processed in other cores.
+
+In all of these scenarios, the original job is considered to be completed when
+the last fraction finishes its processing.
+*** Is this partitioning feasible?
+Partitioning on the time axis is more feasible, by saving the job execution
+state, and may not require the user's intervention to enable this
+feature. Partitioning on the cores axis is less feasible, depending on the
+application communication pattern, and may require user intervention into the
+application to enable this feature. Though it is nevertheless interesting to
+investigate.
+*** Why we want to mess around with the jobs' structure?
+Because Backfilling algorithms (wither EASY or Conservative) are by far the most
+accepted scheduling policies. Changing the policy itself is considered a very
+risky move, so people don't do it. The point here is that, perhaps by changing
+the jobs's structure we can increase the overall scheduling performance of
+backfilling algorithms. It is one way to increase scheduling performance, while
+keeping backfilling.
+*** Why doing job partitioning?
+Large jobs can risk to ``stuck'' the platform, stuck jobs will need to wait for
+the large job to finish in order to be processed, this may result of many jobs
+(especially small ones) to wait for a long time, drastically increasing the
+scheduling metrics (any metric, waiting time, flow, time or slowdown). This
+phenomenon was mentioned by Mr. Feitelson himself during JSSPP 2020.
+
+This problem is often solved by exclusively allocating a partition of the
+platform for small jobs. This strategy assures that ``small jobs keep flowing''
+in the patform, but it is still a strict strategy, since the ``flow rate'' is
+bound by the size of the partition for small jobs. We can perhaps use the whole
+platform to keep these small jobs flowing by partitioning the large jobs. 
+*** Is it not just job preemption?
+This idea is quite related to job preemption. There are some studies that use
+preemption in backfilling. This first one
+([[http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.186.7780&rep=rep1&type=pdf]])
+Uses preemption to run jobs in the ``holes'' of the schedule. If this small jobs
+take more time to process to the available hole, they get preempted. It's a
+different preemption strategy than the one that we are proposing.
+
+Another quite related work is this one
+([[https://www.mcs.anl.gov/~kettimut/publications/ijhpcn.pdf]]). They define several
+rules to enable a job in the queue to actually force a preemption of a job that
+is currently running. This is quite invasive, in terms o job interference during
+scheduling, and perhaps a worse interference than, for instance, sorting the jobs
+using SAF or SPF. Partitioning large jobs is a less invasive job preemption
+strategy, since the preemptions are planned ahead of time, and no other job can
+interfere and induce a job preemption.
+
+Both works don't account the possibility of partitioning the jobs on the cores
+axis as well. This second possibility has limited applicability, since fewer
+applications can actually be partitioned on the cores axis, but it is
+nonetheless interesting, because there exist applications that can be
+partitioned in such way, and it would be interesting to see if we can get
+performance inprovements into the scheduling, if we use this second strategy as
+well. We can also evaluate which possility is better, partitioning on the time,
+or partitioning on the cores axis.
+*** What can we expect by doing this job partitioning?
+We can expect the following effects into the scheduling:
+1. Partitioning on the time axis may alleviate the effects of poor runtime
+   estimates. Only the last job fraction will have innacuracy in regards to its
+   processing time. All other fractions will be 100% accurate (since the
+   original job will not be finished yet). This can help backfilling to be more
+   effective;
+2. It will create sort of ``breathing windows'' in the platform, when large
+   jobs are processed. This may reduce the cases where the platform is not
+   capable of processing small jobs, making them ``stuck'', when large jobs are
+   being processed in the platform;
+3. Large jobs will take longer to be processed, since all fractions will need to
+   be scheduled, and thus they will wait more, when compared to the whole
+   execution of the job at once. However, the increase in waiting time for the
+   long jobs mey not be large, in comparison with their processing time
+   (slowdown), and the benefits on the global scheduling may outweigh this
+   negative effect.
+*** Some thoughts about the approach
+- I hope that partitioning on the time axis benefits scheduling, since this
+  technique could be easily implmented in the RJMSs, with no direct intervention
+  of the users to enable this feature.
+- It beneits the ``job fairness'' of the platform. Using FCFS the large jobs
+  interfere, since they can clog the platform. To alleviate this we could change
+  the policy, and use SAF for instance. But then the small jobs will interfere
+  in the large ones, these small jobs will delay the large ones.
+- Although large jobs may take more to be processed, if job partitioning is
+  beneficial to the global scheduling, the platform maintainer could reward the
+  users that allow their large jobs to be partitioned. Maintainers can, for
+  instance, make discounts of user's cores $\cdot$ hour quotas.
+** <2020-09-16 Qua> Looking at a small workload example
+In this test, we want to do a quick look at the job geometries, taking as
+example a fragment of the Mustang workload. For this test we are using the
+workload called ~test_mustang_release_v0.2.0_66.swf~, which is a two week
+workload, extracted from the original Mustang trace. It's the 66th fortnight of
+the trace.
+
+#+begin_src python :results value :session *python* :exports both
+import pandas as pd
+
+swf_input_path='./workloads/test_mustang_release_v0.2.0_66.swf'
+
+swf_fields=['JOB_ID',
+            'SUBMIT_TIME',
+            'WAIT_TIME',
+            'RUN_TIME',
+            'ALLOCATED_PROCESSOR_COUNT',
+            'AVERAGE_CPU_TIME_USED',
+            'USED_MEMORY',
+            'REQUESTED_NUMBER_OF_PROCESSORS',
+            'REQUESTED_TIME',
+            'REQUESTED_MEMORY',
+            'STATUS',
+            'USER_ID',
+            'GROUP_ID',
+            'APPLICATION_ID',
+            'QUEUD_ID',
+            'PARTITION_ID',
+            'PRECEDING_JOB_ID',
+            'THINK_TIME_FROM_PRECEDING_JOB']
+
+df_workload=pd.read_csv(swf_input_path, sep=' ', names=swf_fields)
+
+df_workload
+#+end_src
+
+#+RESULTS:
+#+begin_example
+         JOB_ID  SUBMIT_TIME  WAIT_TIME  RUN_TIME  ALLOCATED_PROCESSOR_COUNT  ...  APPLICATION_ID  QUEUD_ID  PARTITION_ID  PRECEDING_JOB_ID  THINK_TIME_FROM_PRECEDING_JOB
+1216946       0          0.0          9       266                       24.0  ...              -1        -1            -1                -1                             -1
+1216949       1        210.0          9       181                       24.0  ...              -1        -1            -1                -1                             -1
+1216947       2        285.0          9        97                       24.0  ...              -1        -1            -1                -1                             -1
+1216948       3        286.0          8        97                       24.0  ...              -1        -1            -1                -1                             -1
+1216951       4        380.0          9       179                       24.0  ...              -1        -1            -1                -1                             -1
+...         ...          ...        ...       ...                        ...  ...             ...       ...           ...               ...                            ...
+1317363   99821    1209260.0       1253      3822                      240.0  ...              -1        -1            -1                -1                             -1
+1317445   99822    1209261.0       1912      3808                      240.0  ...              -1        -1            -1                -1                             -1
+1317683   99823    1209261.0       3078      4391                      240.0  ...              -1        -1            -1                -1                             -1
+1317028   99824    1209320.0         14        61                       24.0  ...              -1        -1            -1                -1                             -1
+1317058   99825    1209417.0         14       731                       24.0  ...              -1        -1            -1                -1                             -1
+
+[99826 rows x 18 columns]
+#+end_example
+
+
+Let's now look at the ~REQUESTED_NUMBER_OF_PROCESSORS~ and ~RUN_TIME~.
+
+#+begin_src python :results value :session *python* :exports both
+df_workload[['RUN_TIME','REQUESTED_NUMBER_OF_PROCESSORS']].describe()
+#+end_src
+
+#+RESULTS:
+:            RUN_TIME  REQUESTED_NUMBER_OF_PROCESSORS
+: count  99826.000000                    99826.000000
+: mean     741.142087                       34.104322
+: std     3560.450843                      218.597441
+: min        1.000000                        1.000000
+: 25%      441.000000                       24.000000
+: 50%      443.000000                       24.000000
+: 75%      445.000000                       24.000000
+: max    57625.000000                    38160.000000
+
+Let's see how many jobs pass half of the maximum walltime allowed by mustang,
+which is 960 minutes according to the Mustang's metadata.
+
+#+begin_src python :results value :session *python* :exports both
+SEC_ONE_MINUTE=60
+SEC_WALLTIME_LIMIT=960*SEC_ONE_MINUTE
+SEC_HALF_WALLTIME_LIMIT=SEC_WALLTIME_LIMIT/2
+
+df_long_jobs=df_workload.loc[df_workload['REQUESTED_TIME'] >= SEC_HALF_WALLTIME_LIMIT]
+
+df_long_jobs[['REQUESTED_TIME','RUN_TIME','REQUESTED_NUMBER_OF_PROCESSORS']].describe()
+#+end_src
+
+#+RESULTS:
+:        REQUESTED_TIME      RUN_TIME  REQUESTED_NUMBER_OF_PROCESSORS
+: count      590.000000    590.000000                      590.000000
+: mean     53392.881356  38337.471186                     1186.942373
+: std       9243.296116  23676.799375                     1806.610978
+: min      28800.000000      1.000000                       24.000000
+: 25%      57600.000000  10021.750000                       72.000000
+: 50%      57600.000000  56329.000000                      576.000000
+: 75%      57600.000000  57602.000000                     1080.000000
+: max      57600.000000  57625.000000                    15360.000000
+
+#+begin_src python :results file :session *python* :exports both
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+FIG_PATH='./figures/test_mustang_release_v0.2.0_66_long_jobs.png'
+
+SMALL_SIZE = 5
+MEDIUM_SIZE = 10
+BIGGER_SIZE = 12
+FIG_WIDTH = 2
+FIG_HEIGHT = 2
+
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=SMALL_SIZE)     # fontsize of the x and y labels
+plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
+#print(sns.__version__)
+
+plt.clf()
+plt.figure(figsize=(FIG_WIDTH,FIG_HEIGHT))
+facet=sns.displot(x='REQUESTED_TIME', y='REQUESTED_NUMBER_OF_PROCESSORS', data=df_long_jobs, cbar=True)
+fig=facet.fig
+fig.set_figwidth(FIG_WIDTH)
+fig.set_figheight(FIG_HEIGHT)
+fig.savefig(FIG_PATH, format='png', dpi=300, bbox_inches='tight')
+FIG_PATH
+#+end_src
+
+#+RESULTS:
+[[file:./figures/test_mustang_release_v0.2.0_66_long_jobs.png]]
+
+
+In this way, only 590 jobs (out of almost 100 thousand) would be afected by some
+partitioning, here taking into account only the ~REQUESTED_TIME~ as partitioning
+criterion.
+** <2020-09-17 Qui> Partitioning the workloads from the small test example
+Now that we look that there's around 600 jobs on the test workload that would be
+partitioned, let's make a small script to generate a new workload, where these
+600 jobs are replaced by job partitions.
+
+#+begin_src python :results value :session *python* :exports both
+import pandas as pd
+
+swf_input_path='./workloads/test_mustang_release_v0.2.0_66.swf'
+
+swf_fields=['JOB_ID',
+            'SUBMIT_TIME',
+            'WAIT_TIME',
+            'RUN_TIME',
+            'ALLOCATED_PROCESSOR_COUNT',
+            'AVERAGE_CPU_TIME_USED',
+            'USED_MEMORY',
+            'REQUESTED_NUMBER_OF_PROCESSORS',
+            'REQUESTED_TIME',
+            'REQUESTED_MEMORY',
+            'STATUS',
+            'USER_ID',
+            'GROUP_ID',
+            'APPLICATION_ID',
+            'QUEUD_ID',
+            'PARTITION_ID',
+            'PRECEDING_JOB_ID',
+            'THINK_TIME_FROM_PRECEDING_JOB']
+
+df_workload=pd.read_csv(swf_input_path, sep=' ', names=swf_fields)
+
+df_workload
+#+end_src
+
+#+RESULTS:
+#+begin_example
+         JOB_ID  SUBMIT_TIME  WAIT_TIME  RUN_TIME  ALLOCATED_PROCESSOR_COUNT  ...  APPLICATION_ID  QUEUD_ID  PARTITION_ID  PRECEDING_JOB_ID  THINK_TIME_FROM_PRECEDING_JOB
+1216946       0          0.0          9       266                       24.0  ...              -1        -1            -1                -1                             -1
+1216949       1        210.0          9       181                       24.0  ...              -1        -1            -1                -1                             -1
+1216947       2        285.0          9        97                       24.0  ...              -1        -1            -1                -1                             -1
+1216948       3        286.0          8        97                       24.0  ...              -1        -1            -1                -1                             -1
+1216951       4        380.0          9       179                       24.0  ...              -1        -1            -1                -1                             -1
+...         ...          ...        ...       ...                        ...  ...             ...       ...           ...               ...                            ...
+1317363   99821    1209260.0       1253      3822                      240.0  ...              -1        -1            -1                -1                             -1
+1317445   99822    1209261.0       1912      3808                      240.0  ...              -1        -1            -1                -1                             -1
+1317683   99823    1209261.0       3078      4391                      240.0  ...              -1        -1            -1                -1                             -1
+1317028   99824    1209320.0         14        61                       24.0  ...              -1        -1            -1                -1                             -1
+1317058   99825    1209417.0         14       731                       24.0  ...              -1        -1            -1                -1                             -1
+
+[99826 rows x 18 columns]
+#+end_example
+
+#+begin_src python :results value :session *python* :exports both
+SEC_ONE_MINUTE=60
+SEC_WALLTIME_LIMIT=960*SEC_ONE_MINUTE
+SEC_HALF_WALLTIME_LIMIT=SEC_WALLTIME_LIMIT/2
+
+df_long_jobs=df_workload.loc[df_workload['REQUESTED_TIME'] >= SEC_HALF_WALLTIME_LIMIT]
+df_short_jobs=df_workload.loc[df_workload['REQUESTED_TIME'] < SEC_HALF_WALLTIME_LIMIT]
+
+df_long_jobs[['REQUESTED_TIME','RUN_TIME','REQUESTED_NUMBER_OF_PROCESSORS']].describe()
+#+end_src
+
+#+RESULTS:
+:        REQUESTED_TIME      RUN_TIME  REQUESTED_NUMBER_OF_PROCESSORS
+: count      590.000000    590.000000                      590.000000
+: mean     53392.881356  38337.471186                     1186.942373
+: std       9243.296116  23676.799375                     1806.610978
+: min      28800.000000      1.000000                       24.000000
+: 25%      57600.000000  10021.750000                       72.000000
+: 50%      57600.000000  56329.000000                      576.000000
+: 75%      57600.000000  57602.000000                     1080.000000
+: max      57600.000000  57625.000000                    15360.000000
+
+#+begin_src python :results value :session *python* :exports both
+import numpy as np
+
+lst_partitioned_jobs=[]
+SEC_ONE_HOUR=3600.0
+
+def partition_job(job):
+    ##dirty hack to deal with jobs that finish on the walltime
+    ##AND just few seconds longer than the walltime
+    if job['RUN_TIME'] >= job['REQUESTED_TIME']:
+        job['RUN_TIME']=job['REQUESTED_TIME']
+    
+    nb_partitions=int(np.ceil(job['RUN_TIME']/SEC_ONE_HOUR))
+    subm_time=job['SUBMIT_TIME']
+    job_id_prefix=str(int(job['JOB_ID']))
+    for i in range(nb_partitions):
+        partition=job.copy()
+        partition['SUBMIT_TIME']=subm_time
+        subm_time=subm_time+SEC_ONE_HOUR
+        if i == (nb_partitions-1) and (job['RUN_TIME']%SEC_ONE_HOUR) > 0:
+            run_time=job['RUN_TIME']%SEC_ONE_HOUR
+        else:
+            run_time=SEC_ONE_HOUR
+        partition['RUN_TIME']=run_time
+        partition['REQUESTED_TIME']=SEC_ONE_HOUR
+        partition['JOB_ID']='job_'+job_id_prefix+'_'+str(i)
+        lst_partitioned_jobs.append(partition)
+
+#for index, row in df_long_jobs.iterrows():
+#    partition_job(row)
+#    break
+df_long_jobs.apply(lambda job: partition_job(job), axis=1)
+
+#print(lst_partitioned_jobs)   
+df_partitioned_jobs=pd.DataFrame(lst_partitioned_jobs)
+df_partitioned_jobs
+#df_partitioned_jobs.loc[df_partitioned_jobs['RUN_TIME']<=10]
+#df_long_jobs.loc[df_long_jobs['JOB_ID'] == 96772][['RUN_TIME','REQUESTED_TIME']]
+#+end_src
+
+#+RESULTS:
+#+begin_example
+               JOB_ID  SUBMIT_TIME  WAIT_TIME  RUN_TIME  ALLOCATED_PROCESSOR_COUNT  ...  APPLICATION_ID  QUEUD_ID  PARTITION_ID  PRECEDING_JOB_ID  THINK_TIME_FROM_PRECEDING_JOB
+1217192      job_23_0       6829.0        6.0    3600.0                        0.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+1217192      job_23_1      10429.0        6.0    3600.0                        0.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+1217192      job_23_2      14029.0        6.0    3600.0                        0.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+1217192      job_23_3      17629.0        6.0    3600.0                        0.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+1217192      job_23_4      21229.0        6.0    3600.0                        0.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+...               ...          ...        ...       ...                        ...  ...             ...       ...           ...               ...                            ...
+1328115  job_99818_11    1247790.0    61898.0    3600.0                     2016.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+1328115  job_99818_12    1251390.0    61898.0    3600.0                     2016.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+1328115  job_99818_13    1254990.0    61898.0    3600.0                     2016.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+1328115  job_99818_14    1258590.0    61898.0    3600.0                     2016.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+1328115  job_99818_15    1262190.0    61898.0    3600.0                     2016.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+
+[6450 rows x 18 columns]
+#+end_example
+
+#+begin_src python :results value :session *python* :exports both
+df_renamed_short_jobs=df_short_jobs.copy()
+
+lst_new_job_ids=[]
+#def rename_job_ids(job):
+#    job['JOB_ID']='job_'+str(job['JOB_ID'])+'_0'
+
+#df_renamed_short_jobs.apply(lambda job: rename_job_ids(job), axis=1)
+#df_renamed_short_jobs.loc[:,'JOB_ID']=df_renamed_short_jobs['JOB_ID'].astype(str)
+for index, job in df_short_jobs.iterrows():
+    lst_new_job_ids.append('job_'+str(int(job['JOB_ID']))+'_0')
+
+#df_renamed_short_jobs.loc[:,'JOB_ID']='job_'+str(df_short_jobs['JOB_ID'])+'_0'
+
+df_renamed_short_jobs.loc[:,'JOB_ID']=lst_new_job_ids
+df_renamed_short_jobs
+#+end_src
+
+#+RESULTS:
+#+begin_example
+              JOB_ID  SUBMIT_TIME  WAIT_TIME  RUN_TIME  ALLOCATED_PROCESSOR_COUNT  ...  APPLICATION_ID  QUEUD_ID  PARTITION_ID  PRECEDING_JOB_ID  THINK_TIME_FROM_PRECEDING_JOB
+1216946      job_0_0          0.0          9       266                       24.0  ...              -1        -1            -1                -1                             -1
+1216949      job_1_0        210.0          9       181                       24.0  ...              -1        -1            -1                -1                             -1
+1216947      job_2_0        285.0          9        97                       24.0  ...              -1        -1            -1                -1                             -1
+1216948      job_3_0        286.0          8        97                       24.0  ...              -1        -1            -1                -1                             -1
+1216951      job_4_0        380.0          9       179                       24.0  ...              -1        -1            -1                -1                             -1
+...              ...          ...        ...       ...                        ...  ...             ...       ...           ...               ...                            ...
+1317363  job_99821_0    1209260.0       1253      3822                      240.0  ...              -1        -1            -1                -1                             -1
+1317445  job_99822_0    1209261.0       1912      3808                      240.0  ...              -1        -1            -1                -1                             -1
+1317683  job_99823_0    1209261.0       3078      4391                      240.0  ...              -1        -1            -1                -1                             -1
+1317028  job_99824_0    1209320.0         14        61                       24.0  ...              -1        -1            -1                -1                             -1
+1317058  job_99825_0    1209417.0         14       731                       24.0  ...              -1        -1            -1                -1                             -1
+
+[99236 rows x 18 columns]
+#+end_example
+
+ Now, we concatenate ~df_partitioned_jobs~ and ~df_renamed_short_jobs~, sort by
+ ~SUBMIT_TIME~, and we have our partitioned test workload.
+
+#+begin_src python :results value :session *python* :exports both
+import pandas as pd
+
+df_partitioned_workload=pd.concat([df_renamed_short_jobs, df_partitioned_jobs])
+df_partitioned_workload=df_partitioned_workload.sort_values(by='SUBMIT_TIME').reset_index(drop=True)
+df_partitioned_workload
+#+end_src
+
+#+RESULTS:
+#+begin_example
+              JOB_ID  SUBMIT_TIME  WAIT_TIME  RUN_TIME  ALLOCATED_PROCESSOR_COUNT  ...  APPLICATION_ID  QUEUD_ID  PARTITION_ID  PRECEDING_JOB_ID  THINK_TIME_FROM_PRECEDING_JOB
+0            job_0_0          0.0        9.0     266.0                       24.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+1            job_1_0        210.0        9.0     181.0                       24.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+2            job_2_0        285.0        9.0      97.0                       24.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+3            job_3_0        286.0        8.0      97.0                       24.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+4            job_4_0        380.0        9.0     179.0                       24.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+...              ...          ...        ...       ...                        ...  ...             ...       ...           ...               ...                            ...
+105681  job_99726_15    1261605.0        0.0    3600.0                      480.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+105682  job_99728_15    1261605.0        1.0    3600.0                      240.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+105683  job_99727_15    1261605.0        0.0    3600.0                      480.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+105684  job_99815_15    1261949.0    62139.0    3600.0                     4008.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+105685  job_99818_15    1262190.0    61898.0    3600.0                     2016.0  ...            -1.0      -1.0          -1.0              -1.0                           -1.0
+
+[105686 rows x 18 columns]
+#+end_example
+
+#+begin_src python :results output :session *python* :exports both
+df_renamed_jobs.to_csv('./workloads/renamed_test_mustang_release_v0.2.0_66.swf', 
+                               sep=' ', header=False, index=False)
+#+end_src
+
+Now, to generate the Batsim workload file
+
+#+begin_src shell :session *shell* :results output :exports both 
+ python swf_to_batsim_workload_compute_only.py -v -cs 1e6 -pf 38400 \
+../workloads/renamed_test_mustang_release_v0.2.0_66.swf            \
+../workloads/renamed_test_mustang_release_v0.2.0_66.json
+#+end_src
+
+And we are all set to run the workloads with Batsim.
+
+** <2021-01-05 Ter> Quest to compile install Batsim
+Batsim is using ~meson~ and ~ninja~ to build now, ~CMake~ is deprecated, though it may
+still work, didn't try using ~CMake~.
+
+I installed ~meson~ and ~ninja~ using ~conda~ in PCAD.
+
+Batsim complained about ~gcc~. I installed a ~gcc~ using ~conda install gcc~. Batsim
+stopped complaining.
+
+I need to build ~SimGrid~ as well. Using stable build.
+
+~SimGrid~ complained about boost. I installed ~conda install libboost~ and it
+stopped complaining.
+
+Intalled simgrid under ~$HOME/simgrid.~ 
+
+The installation batsim command
+
+#+BEGIN_SRC 
+meson build --prefix=/home/users/dancarastan/batsim_build
+#+END_SRC
+
+Still complains about simgrid. Both exports below didn't work.
+
+#+BEGIN_SRC 
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/users/dancarastan/simgrid/lib
+export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:/home/users/dancarastan/simgrid/lib
+#+END_SRC
+
+It seems that ~BatSim~ needs simgrid installed as a ~pkgconfig~ package, wtf?
+
+I needed that ~pkg-config~ looked at the simgrid ~.pc~ file (the file that Millian
+made for simgrid). I did this by changing the environment variable
+
+#+BEGIN_SRC 
+export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/home/users/dancarastan/pkgconfig
+#+END_SRC
+
+I'm putting all of the ~.pc~ files on ~/home/users/dancarastan/pkgconfig~.
+
+I had to rename ~simgrid.pc.in~ to ~simgrid.pc~ as well. But now the meson commands
+recognizes simgrid!
+
+I'm still probaly going to need to set the export below
+
+#+BEGIN_SRC 
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/users/dancarastan/simgrid/lib
+#+END_SRC
+
+I had to install ~rapidjson~ with conda as well. Batsim didn't recognize it though
+
+Built ~rapidjson~ from scratch, added updated ~LD_LIBRARY_PATH~, and added the ~.pc~
+file in the ~pkgconfig~ dir.
+
+#+BEGIN_SRC 
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/users/dancarastan/rapidjson/lib
+#+END_SRC
+
+Rapidjson worked, but there are other dependencies that need to be resolved and
+without ~apt~ access or access to install ~nix~ i simply can't compile Batsim.
+
+Now i tried to run batsim with ~Nix~. I managed to install ~Nix~ without root
+permissions using Olivier's script
+https://github.com/oar-team/nix-user-chroot-companion
+
+The script only worked at PCAD frontend, as Olivier mentioned.
+
+Got this error when building ~proot~ (idk why i needed proot but is seems to be
+the case lol)
+
+#+BEGIN_SRC 
+./configure: line 6425: `                      ac_cv_prog_cc_stdc=$ac_cv_prog_cc_c89'
+builder for '/nix/store/zkys9kylllxsrhciwi8hjzvmdhzmf7hx-coreutils-8.32-x86_64-unknown-linux-musl.drv' failed with exit code 2
+cannot build derivation '/nix/store/n7aj12x10bmp9kbskwhckjjw9zmi90vs-proot-20190510-x86_64-unknown-linux-musl.drv': 1 dependencies couldn't be built
+error: build of '/nix/store/n7aj12x10bmp9kbskwhckjjw9zmi90vs-proot-20190510-x86_64-unknown-linux-musl.drv' failed
+#+END_SRC
+
+I'm dropping this whole nix thing, last attempt is using docker. The good news
+is that now i have nix available on PCAD frontend.
+
+It worked with docker, following Batsim installation tutorial. Docker works on
+the following PCAD nodes
+
+#+BEGIN_EXAMPLE
+[10:34, 08/01/2021] Matheus Serpa: tem na blaise,  draco4, draco5, draco6, draco
+[10:34, 08/01/2021] Matheus Serpa: draco7*
+[10:34, 08/01/2021] Matheus Serpa: orion1
+[10:34, 08/01/2021] Matheus Serpa: orion3
+[10:34, 08/01/2021] Matheus Serpa: orion2*
+[10:34, 08/01/2021] Matheus Serpa: tupi1, tupi2
+#+END_EXAMPLE
+
+I sent the following message on the Batsim Telegram group
+
+#+BEGIN_EXAMPLE
+Bon, sur ma quête pour faire tourner Batsim:
+- J'ai réussi à faire tourner nix par https://github.com/oar-team/nix-user-chroot-companion mais uniquement sur le frontend de la plate-forme. Apparemment les user namespaces sont aussi activées dans les noeuds spécifiques, mais le script ne fonctionne pas. J'ai pas bien compris le truc de proot
+- Batsim avec Docker a marché mais je suis arrivé sur un outre problème: J'arrive pas à compiler batsched, de même façon que j'arrive pas à compiler Batsim
+- Est-ce qu'il y a par hazard une image docker de batsched? héhé
+- Sinon, est-ce que pybatsim implémente conservative backfilling?
+#+END_EXAMPLE
+
+Let's see what they will answer.
+
+Olivier asked
+
+#+BEGIN_EXAMPLE
+Danilo tu as eu quoi comme erreur avec  user-chroot-companion sur les noeuds ? ( tu dois être mon premier utilisateur et quand on sait comment je code :wink: )
+#+END_EXAMPLE
+
+I have now to reproduce the error to show him.
+
+Reproducing
+
+The user namespace seems to work
+
+#+BEGIN_EXAMPLE
+(base) dancarastan@draco7:~/nix-user-chroot-companion$ grep CONFIG_USER_NS /boot/config-$(uname -r)
+CONFIG_USER_NS=y
+#+END_EXAMPLE
+
+#+BEGIN_EXAMPLE
+(base) dancarastan@draco7:~/nix-user-chroot-companion$ ./nix-user-chroot.sh 
+Need user namespace feature, you can enable it with the following command:
+sudo sysctl -w kernel.unprivileged_userns_clone=1
+#+END_EXAMPLE
+
+By deleting the if lines i get the following error with the ~nix-chroot-companion~
+
+#+BEGIN_EXAMPLE
+Activate Nix
+thread 'main' panicked at 'unshare failed: Sys(EPERM)', src/main.rs:97:5
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+thread 'main' panicked at 'failed to remove temporary directory: /tmp/.tmpsG8ULR', src/main.rs:200:21
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+#+END_EXAMPLE
+
+Let's see what Olivier answers.
+
+Olivier answered
+
+#+BEGIN_EXAMPLE
+Le simple c'est demander l'activation des user namespace sur les noeuds surtourt ils  sont disponibles sur la frontend... sinon c'est l'approche via proot mais c'est bofbof
+#+END_EXAMPLE
+
+Michael Mercier answered
+
+#+BEGIN_EXAMPLE
+Ca veux dire que les user namespaces sont bien dans le kernel mais désactivé sur la machine :/
+#+END_EXAMPLE
+
+and that makes total sense. Now i have to see with Serpa if they can activate
+user namespaces on the machines. Serpa will check this
+
+Serpa installed batsim and batsched with nix (apparently) on turing
+* <2021-05-27 Qui> Some analysis of the preliminary experiments
+Let's analysis the prelinimary experiments. The ~renamed_mustang~ is the original
+test workload, only with the job ids renamed, and the ~partitioned_mustang~ is the
+renamed version with some jobs partitioned in one hour segments.
+
+
+#+begin_src python :results output :session *python* :exports both
+import pandas as pd
+
+original_csv='./experiments/results/renamed_mustang/out_jobs.csv'
+partitioned_csv='./experiments/results/partitioned_mustang/out_jobs.csv'
+
+df_original=pd.read_csv(original_csv).apply(pd.to_numeric, errors='ignore')
+df_partitioned=pd.read_csv(partitioned_csv).apply(pd.to_numeric, errors='ignore')
+df_partitioned.columns.values
+#+end_src
+
+#+RESULTS:
+: 
+: >>> >>> >>> >>> >>> array(['job_id', 'workload_name', 'profile', 'submission_time',
+:        'requested_number_of_resources', 'requested_time', 'success',
+:        'final_state', 'starting_time', 'execution_time', 'finish_time',
+:        'waiting_time', 'turnaround_time', 'stretch',
+:        'allocated_resources', 'consumed_energy', 'metadata'], dtype=object)
+
+It doesn't make sense to calculate the mean stretch directly, but let's do it
+anyway lol
+
+#+begin_src python :results output :session *python* :exports both
+print(df_original['stretch'].mean())
+print(df_partitioned['stretch'].mean())
+#+end_src
+
+#+RESULTS:
+: 36.28605839024903
+: 5.5282016154646785
+
+Ok, these results seem motivating. Now let's make a proper analyis. I start
+looking at the non-partitioned jobs.
+
+#+begin_src python :results value :session *python* :exports both
+import re
+import numpy as np
+regex_part='job_(\d+)_(\d+)'
+regex_orig='job_(\d+)'
+MATCHED_STR_IDX=0
+JOB_NB_IDX=1
+PART_NB_IDX=2
+
+def parse_job_id_part(row, regex):
+    res=re.search(regex,row['job_id'])   
+    row['job_nb']=int(res.group(JOB_NB_IDX))
+    row['part_nb']=int(res.group(PART_NB_IDX))
+    return row
+
+def parse_job_id_orig(row, regex):
+    res=re.search(regex,row['job_id'])   
+    row['job_nb']=int(res.group(JOB_NB_IDX))    
+    return row
+
+##Initializing job_nb and part_nb columns
+df_partitioned['job_nb']=np.nan
+df_partitioned['part_nb']=np.nan
+df_original['job_nb']=np.nan
+
+df_partitioned=df_partitioned.apply(lambda row : parse_job_id_part(row, regex_part), axis=1)
+df_original=df_original.apply(lambda row : parse_job_id_orig(row, regex_orig), axis=1)
+df_partitioned
+#+end_src
+
+#+RESULTS:
+#+begin_example
+              job_id workload_name  profile  submission_time  ...  consumed_energy  metadata  job_nb part_nb
+0            job_0_0            w0      267              0.0  ...             -1.0       NaN       0       0
+1            job_2_0            w0       98            285.0  ...             -1.0       NaN       2       0
+2            job_3_0            w0       98            286.0  ...             -1.0       NaN       3       0
+3            job_1_0            w0      182            210.0  ...             -1.0       NaN       1       0
+4            job_5_0            w0       13            482.0  ...             -1.0       NaN       5       0
+...              ...           ...      ...              ...  ...              ...       ...     ...     ...
+105681  job_99726_15            w0     3601        1261605.0  ...             -1.0       NaN   99726      15
+105682  job_99727_15            w0     3601        1261605.0  ...             -1.0       NaN   99727      15
+105683  job_99728_15            w0     3601        1261605.0  ...             -1.0       NaN   99728      15
+105684  job_99815_15            w0     3601        1261949.0  ...             -1.0       NaN   99815      15
+105685  job_99818_15            w0     3601        1262190.0  ...             -1.0       NaN   99818      15
+
+[105686 rows x 19 columns]
+#+end_example
+
+Let's get the ~job_nb~ with count 1 (non-partitioned jobs)
+
+#+begin_src python :results value :session *python* :exports both
+count_parts=df_partitioned.groupby(['job_nb']).count().reset_index(drop=True)
+partitioned_jobs_nb=count_parts.loc[count_parts['part_nb']>1].index
+non_partitioned_jobs_nb=count_parts.loc[count_parts['part_nb']==1].index
+non_partitioned_jobs_nb
+#+end_src
+
+#+RESULTS:
+: Int64Index([    0,     1,     2,     3,     4,     5,     6,     7,     8,
+:                 9,
+:             ...
+:             99814, 99816, 99817, 99819, 99820, 99821, 99822, 99823, 99824,
+:             99825],
+:            dtype='int64', length=99331)
+
+Getting the non-partitioned jobs from the original and the partitioned (new) experiments
+
+#+begin_src python :results output :session *python* :exports both
+new_df_non_partitioned=df_partitioned[df_partitioned['job_nb'].isin(list(non_partitioned_jobs_nb))]
+original_df_non_partitioned=df_original[df_original['job_nb'].isin(list(non_partitioned_jobs_nb))]
+original_df_non_partitioned
+#+end_src
+
+#+RESULTS:
+#+begin_example
+
+>>>           job_id workload_name  profile  submission_time  requested_number_of_resources  ...   stretch    allocated_resources consumed_energy  metadata  job_nb
+0          job_0            w0      267              0.0                             24  ...  1.000009                   0-23            -1.0       NaN       0
+1          job_2            w0       98            285.0                             24  ...  1.000018                   0-23            -1.0       NaN       2
+2          job_3            w0       98            286.0                             24  ...  1.000018                  48-71            -1.0       NaN       3
+3          job_1            w0      182            210.0                             24  ...  1.000013                  24-47            -1.0       NaN       1
+4          job_5            w0       13            482.0                             72  ...  1.000138                   0-71            -1.0       NaN       5
+...           ...      ...              ...                            ...  ...       ...                    ...             ...       ...     ...
+99790  job_99821            w0     3823        1209260.0                            240  ...  1.159301            37848-38087            -1.0       NaN   99821
+99791  job_99819            w0     4402        1209260.0                            240  ...  1.138348            37368-37607            -1.0       NaN   99819
+99792  job_99549            w0    10808        1204311.0                            600  ...  1.000000  9432-9671 10008-10367            -1.0       NaN   99549
+99793  job_99565            w0    10805        1204793.0                             24  ...  1.000000            20496-20519            -1.0       NaN   99565
+99794  job_99823            w0     4392        1209261.0                            240  ...  1.630921            28008-28247            -1.0       NaN   99823
+
+[99331 rows x 18 columns]
+#+end_example
+
+Calculating the mean stretch for the non-partitoned jobs from the two experiments
+
+#+begin_src python :results output :session *python* :exports both
+print(original_df_non_partitioned['stretch'].mean())
+print(new_df_non_partitioned['stretch'].mean())
+#+end_src
+
+#+RESULTS:
+: 36.46061307628032
+: 5.726460424912665
+
+The above is the mean strech for the original and for the partitioned workload,
+taking into account the non-partitioned jobs.
+
+#+begin_src python :results output :session *python* :exports both
+new_df_partitioned=df_partitioned[df_partitioned['job_nb'].isin(list(partitioned_jobs_nb))]
+original_df_partitioned=df_original[df_original['job_nb'].isin(list(partitioned_jobs_nb))]
+original_df_partitioned
+#+end_src
+
+#+RESULTS:
+#+begin_example
+
+>>>           job_id workload_name  profile  submission_time  ...                                allocated_resources  consumed_energy  metadata job_nb
+195       job_24            w0    36707           6835.0  ...                                              72-95             -1.0       NaN     24
+198       job_34            w0    36057           8542.0  ...                                          2016-2783             -1.0       NaN     34
+207       job_28            w0    41092           7912.0  ...                                             96-119             -1.0       NaN     28
+212       job_23            w0    43451           6829.0  ...                                              48-71             -1.0       NaN     23
+221       job_68            w0    43202          14699.0  ...                                144-359 12360-18287             -1.0       NaN     68
+...           ...      ...              ...  ...                                                ...              ...       ...    ...
+99821  job_99726            w0    57602        1207605.0  ...    13896-13967 30000-30239 30288-30335 31080-31199             -1.0       NaN  99726
+99822  job_99727            w0    57602        1207605.0  ...                                        31200-31679             -1.0       NaN  99727
+99823  job_99728            w0    57604        1207605.0  ...                                        31680-31919             -1.0       NaN  99728
+99824  job_99815            w0    57602        1207949.0  ...  8352-8375 8400-8423 9672-9719 13776-13895 3024...             -1.0       NaN  99815
+99825  job_99818            w0    57602        1208190.0  ...                            20520-20807 26280-28007             -1.0       NaN  99818
+
+[495 rows x 18 columns]
+#+end_example
+
+#+begin_src python :results output :session *python* :exports both
+print(original_df_partitioned['stretch'].mean())
+print(new_df_partitioned['stretch'].mean())
+#+end_src
+
+#+RESULTS:
+: 1.2583987575757576
+: 2.429343110149489
+
+This is for the partitioned jobs. But taking the mean stretch directly here may
+be not a good metric. We need to define a reasonable calculation of stretch in
+this partitioned case.
+
+We may expect a performance degradation for the partitioned jobs, but not as much.
