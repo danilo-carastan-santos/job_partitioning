@@ -617,6 +617,7 @@ user namespaces on the machines. Serpa will check this
 
 Serpa installed batsim and batsched with nix (apparently) on turing
 * <2021-05-27 Qui> Some analysis of the preliminary experiments
+** Static stretch comparison
 Let's analysis the prelinimary experiments. The ~renamed_mustang~ is the original
 test workload, only with the job ids renamed, and the ~partitioned_mustang~ is the
 renamed version with some jobs partitioned in one hour segments.
@@ -765,26 +766,26 @@ taking into account the non-partitioned jobs.
 #+begin_src python :results output :session *python* :exports both
 new_df_partitioned=df_partitioned[df_partitioned['job_nb'].isin(list(partitioned_jobs_nb))]
 original_df_partitioned=df_original[df_original['job_nb'].isin(list(partitioned_jobs_nb))]
-original_df_partitioned
+new_df_partitioned
 #+end_src
 
 #+RESULTS:
 #+begin_example
 
->>>           job_id workload_name  profile  submission_time  ...                                allocated_resources  consumed_energy  metadata job_nb
-195       job_24            w0    36707           6835.0  ...                                              72-95             -1.0       NaN     24
-198       job_34            w0    36057           8542.0  ...                                          2016-2783             -1.0       NaN     34
-207       job_28            w0    41092           7912.0  ...                                             96-119             -1.0       NaN     28
-212       job_23            w0    43451           6829.0  ...                                              48-71             -1.0       NaN     23
-221       job_68            w0    43202          14699.0  ...                                144-359 12360-18287             -1.0       NaN     68
-...           ...      ...              ...  ...                                                ...              ...       ...    ...
-99821  job_99726            w0    57602        1207605.0  ...    13896-13967 30000-30239 30288-30335 31080-31199             -1.0       NaN  99726
-99822  job_99727            w0    57602        1207605.0  ...                                        31200-31679             -1.0       NaN  99727
-99823  job_99728            w0    57604        1207605.0  ...                                        31680-31919             -1.0       NaN  99728
-99824  job_99815            w0    57602        1207949.0  ...  8352-8375 8400-8423 9672-9719 13776-13895 3024...             -1.0       NaN  99815
-99825  job_99818            w0    57602        1208190.0  ...                            20520-20807 26280-28007             -1.0       NaN  99818
+>>>               job_id workload_name  profile  submission_time  ...  consumed_energy  metadata  job_nb part_nb
+38          job_23_0            w0     3601           6829.0  ...             -1.0       NaN      23       0
+39          job_24_0            w0     3601           6835.0  ...             -1.0       NaN      24       0
+46          job_28_0            w0     3601           7912.0  ...             -1.0       NaN      28       0
+47          job_32_0            w0     3601           8501.0  ...             -1.0       NaN      32       0
+48          job_33_0            w0     3601           8527.0  ...             -1.0       NaN      33       0
+...           ...      ...              ...  ...              ...       ...     ...     ...
+105681  job_99726_15            w0     3601        1261605.0  ...             -1.0       NaN   99726      15
+105682  job_99727_15            w0     3601        1261605.0  ...             -1.0       NaN   99727      15
+105683  job_99728_15            w0     3601        1261605.0  ...             -1.0       NaN   99728      15
+105684  job_99815_15            w0     3601        1261949.0  ...             -1.0       NaN   99815      15
+105685  job_99818_15            w0     3601        1262190.0  ...             -1.0       NaN   99818      15
 
-[495 rows x 18 columns]
+[6355 rows x 19 columns]
 #+end_example
 
 #+begin_src python :results output :session *python* :exports both
@@ -801,3 +802,256 @@ be not a good metric. We need to define a reasonable calculation of stretch in
 this partitioned case.
 
 We may expect a performance degradation for the partitioned jobs, but not as much.
+
+For the partitioned jobs, we use the dataframe ~new_df_partitioned~, aggregate by
+~job_nb~ and apply a sum, giving notably the sum of the waiting times and the sum
+of processing times.
+
+#+begin_src python :results value :session *python* :exports both
+sum_new_df_partitioned=new_df_partitioned.groupby(['job_nb']).sum().reset_index(drop=True)
+sum_new_df_partitioned
+#+end_src
+
+#+RESULTS:
+#+begin_example
+     profile  submission_time  requested_number_of_resources  requested_time  success  starting_time  ...  waiting_time  turnaround_time    stretch  consumed_energy  metadata  part_nb
+0      43463         369577.0                            312         90000.0       13   3.695770e+05  ...        0.0234       43463.0234  13.000007            -13.0       0.0       78
+1      36717         273185.0                            264         75600.0       11   2.731850e+05  ...        0.0198       36717.0198  11.000003            -11.0       0.0       55
+2      41103         332544.0                            288         82800.0       12   3.325440e+05  ...        0.0216       41103.0216  12.000001            -12.0       0.0       66
+3      57616         568016.0                          12288        115200.0       16   5.680160e+05  ...        0.0288       57616.0288  16.000000            -16.0       0.0      120
+4      57616         568432.0                          12288        115200.0       16   5.684320e+05  ...        0.0288       57616.0288  16.000000            -16.0       0.0      120
+..       ...              ...                            ...             ...      ...            ...  ...           ...              ...        ...              ...       ...      ...
+490    57616       19753680.0                           7680        115200.0       16   1.975424e+07  ...      555.0344       58171.0344  16.154126            -16.0       0.0      120
+491    57616       19753680.0                           7680        115200.0       16   1.975424e+07  ...      555.0440       58171.0440  16.154141            -16.0       0.0      120
+492    57616       19753680.0                           3840        115200.0       16   1.975424e+07  ...      555.0536       58171.0536  16.154141            -16.0       0.0      120
+493    57616       19759184.0                          64128        115200.0       16   1.975987e+07  ...      684.0484       58300.0484  16.189954            -16.0       0.0      120
+494    57616       19763040.0                          32256        115200.0       16   1.976360e+07  ...      564.0594       58180.0594  16.156635            -16.0       0.0      120
+
+[495 rows x 14 columns]
+#+end_example
+
+Now, we recalculate the strech, taking into account the sum of the ~waiting_time~
+and the ~execution_time~.
+
+#+begin_src python :results value :session *python* :exports both
+sum_new_df_partitioned['stretch']=(sum_new_df_partitioned['waiting_time']+sum_new_df_partitioned['execution_time']) / sum_new_df_partitioned['execution_time']
+sum_new_df_partitioned[['waiting_time', 'execution_time', 'stretch']]
+#+end_src
+
+#+RESULTS:
+#+begin_example
+     waiting_time  execution_time   stretch
+0          0.0234         43463.0  1.000001
+1          0.0198         36717.0  1.000001
+2          0.0216         41103.0  1.000001
+3          0.0288         57616.0  1.000000
+4          0.0288         57616.0  1.000000
+..            ...             ...       ...
+490      555.0344         57616.0  1.009633
+491      555.0440         57616.0  1.009634
+492      555.0536         57616.0  1.009634
+493      684.0484         57616.0  1.011873
+494      564.0594         57616.0  1.009790
+
+[495 rows x 3 columns]
+#+end_example
+
+Now we calculate the mean stretch of the partitioned jobs, taking into account
+the sum of the values os the partitions.
+
+#+begin_src python :results output :session *python* :exports both
+print(original_df_partitioned['stretch'].mean())
+print(sum_new_df_partitioned['stretch'].mean())
+#+end_src
+
+#+RESULTS:
+: 1.2583987575757576
+: 2.4958060586025006
+
+This ~2.4958060586025006~ stretch value is almost the same as if we calculate the
+take the mean directly from the partitions. But i believe that summing the
+partitions before calculating the stretch is more accurate.
+
+** Cumulative view
+Now we need to plot the cumulative stretch over time. For that i'm considering
+one day ticks, and the cumulative stretch will be of the finished jobs per day
+tick. Remembering that this test workload is a two-week job submission.
+I need to categorize each job in the ~original_df~ and ~partitioned_df~ by the day
+it finished.
+
+#+begin_src python :results value :session *python* :exports both
+SEC_ONE_MINUTE=60
+SEC_ONE_HOUR=SEC_ONE_MINUTE*60
+SEC_ONE_DAY=SEC_ONE_HOUR*24
+
+
+df_partitioned['finish_day']=df_partitioned['finish_time'] // SEC_ONE_DAY
+df_original['finish_day']=df_original['finish_time'] // SEC_ONE_DAY
+df_partitioned[['finish_time', 'finish_day']]
+#+end_src
+
+#+RESULTS:
+#+begin_example
+         finish_time  finish_day
+0       2.670024e+02         0.0
+1       3.830018e+02         0.0
+2       3.840018e+02         0.0
+3       3.920024e+02         0.0
+4       4.950018e+02         0.0
+...              ...         ...
+105681  1.265206e+06        14.0
+105682  1.265206e+06        14.0
+105683  1.265206e+06        14.0
+105684  1.265550e+06        14.0
+105685  1.265791e+06        14.0
+
+[105686 rows x 2 columns]
+#+end_example
+
+Now, i need to calculate the mean stretch grouped by ~finish_day~, and acumulate
+their values for each day.
+
+#+begin_src python :results value :session *python* :exports both
+partitioned_mean_per_day=df_partitioned.groupby(['finish_day']).mean().reset_index(drop=True)
+partitioned_mean_per_day['cumul_stretch']=partitioned_mean_per_day['stretch'].cumsum()
+partitioned_mean_per_day['exp_type']='Partitioned'
+partitioned_mean_per_day['finished_day']=partitioned_mean_per_day.index
+partitioned_mean_per_day
+#+end_src
+
+#+RESULTS:
+#+begin_example
+        profile  submission_time  requested_number_of_resources  requested_time  success  ...  consumed_energy  metadata  cumul_stretch     exp_type  finished_day
+0   2573.714286     4.220214e+04                     927.699248     5684.321805      1.0  ...             -1.0       NaN       1.012409  Partitioned             0
+1   2801.280063     1.157234e+05                    1122.420886     6053.196203      1.0  ...             -1.0       NaN       2.613139  Partitioned             1
+2   2450.032573     2.092839e+05                    2091.205212     5608.371336      1.0  ...             -1.0       NaN       3.908199  Partitioned             2
+3   2772.454945     3.020108e+05                    1386.197802     5991.982418      1.0  ...             -1.0       NaN       5.040139  Partitioned             3
+4   3193.110617     3.717409e+05                     519.333757     7338.358551      1.0  ...             -1.0       NaN      11.916520  Partitioned             4
+5   3894.442786     4.583247e+05                     618.467662     8392.388060      1.0  ...             -1.0       NaN      12.916527  Partitioned             5
+6    733.539356     5.654086e+05                      41.365684     3664.833994      1.0  ...             -1.0       NaN      13.993757  Partitioned             6
+7    615.127288     6.454150e+05                     103.072657     3479.891292      1.0  ...             -1.0       NaN      27.762150  Partitioned             7
+8    521.676735     7.310340e+05                      73.166086     3314.072718      1.0  ...             -1.0       NaN      31.935969  Partitioned             8
+9    408.983340     8.184789e+05                      60.228920     3060.496630      1.0  ...             -1.0       NaN      32.966798  Partitioned             9
+10   543.242787     9.037806e+05                      81.857705     3358.208689      1.0  ...             -1.0       NaN      34.428982  Partitioned            10
+11   585.560347     1.005648e+06                     111.389313     3362.519909      1.0  ...             -1.0       NaN      56.299096  Partitioned            11
+12   695.165836     1.083062e+06                     116.461872     3582.675477      1.0  ...             -1.0       NaN      66.096654  Partitioned            12
+13   607.539887     1.164741e+06                      82.594993     3482.554492      1.0  ...             -1.0       NaN      67.098861  Partitioned            13
+14  3618.180428     1.227356e+06                    1136.000000     7267.743119      1.0  ...             -1.0       NaN      68.145098  Partitioned            14
+
+[15 rows x 16 columns]
+#+end_example
+
+Now doing the same for ~df_original~.
+
+#+begin_src python :results value :session *python* :exports both
+original_mean_per_day=df_original.groupby(['finish_day']).mean().reset_index(drop=True)
+original_mean_per_day['cumul_stretch']=original_mean_per_day['stretch'].cumsum()
+original_mean_per_day['exp_type']='Original'
+original_mean_per_day['finished_day']=original_mean_per_day.index
+original_mean_per_day
+#+end_src
+
+#+RESULTS:
+#+begin_example
+         profile  submission_time  requested_number_of_resources  requested_time  success  ...  consumed_energy  metadata  cumul_stretch  exp_type  finished_day
+0    4680.281787     3.274729e+04                     211.958763    10743.340206      1.0  ...             -1.0       NaN       1.218336  Original             0
+1    8117.411523     1.130174e+05                     344.699588    18517.646091      1.0  ...             -1.0       NaN      16.470089  Original             1
+2    6108.622378     2.102735e+05                     557.034965    14721.986014      1.0  ...             -1.0       NaN      17.814290  Original             2
+3    5004.327869     2.923772e+05                     269.245902    12660.491803      1.0  ...             -1.0       NaN      18.848574  Original             3
+4    4278.254848     3.662487e+05                     103.822715    11140.518929      1.0  ...             -1.0       NaN      81.615280  Original             4
+5   12091.984436     4.562923e+05                     321.151751    27247.657588      1.0  ...             -1.0       NaN      82.637664  Original             5
+6     718.144346     5.652568e+05                      27.104367     3663.393412      1.0  ...             -1.0       NaN      83.639070  Original             6
+7     601.201295     6.457518e+05                      30.184815     3595.217775      1.0  ...             -1.0       NaN      90.398777  Original             7
+8     627.332325     7.314610e+05                      31.703480     3631.558749      1.0  ...             -1.0       NaN     146.123259  Original             8
+9     403.173373     8.184768e+05                      27.162945     3068.506302      1.0  ...             -1.0       NaN     147.538061  Original             9
+10    552.062965     9.036862e+05                      28.699803     3475.263581      1.0  ...             -1.0       NaN     151.103824  Original            10
+11    721.421343     9.993212e+05                      32.557612     3895.664179      1.0  ...             -1.0       NaN     238.483064  Original            11
+12    615.276573     1.071348e+06                      32.885904     3826.465281      1.0  ...             -1.0       NaN     432.536554  Original            12
+13    665.778123     1.164672e+06                      32.248834     3770.785899      1.0  ...             -1.0       NaN     433.540286  Original            13
+14  40794.045455     1.193953e+06                    1014.545455    82044.590909      1.0  ...             -1.0       NaN     434.801178  Original            14
+
+[15 rows x 16 columns]
+#+end_example
+
+Now appending both dataframes to to a single plot
+
+#+begin_src python :results output :session *python* :exports both
+all_mean_per_day=partitioned_mean_per_day.append(original_mean_per_day)
+all_mean_per_day
+#+end_src
+
+#+RESULTS:
+#+begin_example
+
+profile  submission_time  requested_number_of_resources  requested_time  success  ...  consumed_energy  metadata  cumul_stretch     exp_type  finished_day
+0    2573.714286     4.220214e+04                     927.699248     5684.321805      1.0  ...             -1.0       NaN       1.012409  Partitioned             0
+1    2801.280063     1.157234e+05                    1122.420886     6053.196203      1.0  ...             -1.0       NaN       2.613139  Partitioned             1
+2    2450.032573     2.092839e+05                    2091.205212     5608.371336      1.0  ...             -1.0       NaN       3.908199  Partitioned             2
+3    2772.454945     3.020108e+05                    1386.197802     5991.982418      1.0  ...             -1.0       NaN       5.040139  Partitioned             3
+4    3193.110617     3.717409e+05                     519.333757     7338.358551      1.0  ...             -1.0       NaN      11.916520  Partitioned             4
+5    3894.442786     4.583247e+05                     618.467662     8392.388060      1.0  ...             -1.0       NaN      12.916527  Partitioned             5
+6     733.539356     5.654086e+05                      41.365684     3664.833994      1.0  ...             -1.0       NaN      13.993757  Partitioned             6
+7     615.127288     6.454150e+05                     103.072657     3479.891292      1.0  ...             -1.0       NaN      27.762150  Partitioned             7
+8     521.676735     7.310340e+05                      73.166086     3314.072718      1.0  ...             -1.0       NaN      31.935969  Partitioned             8
+9     408.983340     8.184789e+05                      60.228920     3060.496630      1.0  ...             -1.0       NaN      32.966798  Partitioned             9
+10    543.242787     9.037806e+05                      81.857705     3358.208689      1.0  ...             -1.0       NaN      34.428982  Partitioned            10
+11    585.560347     1.005648e+06                     111.389313     3362.519909      1.0  ...             -1.0       NaN      56.299096  Partitioned            11
+12    695.165836     1.083062e+06                     116.461872     3582.675477      1.0  ...             -1.0       NaN      66.096654  Partitioned            12
+13    607.539887     1.164741e+06                      82.594993     3482.554492      1.0  ...             -1.0       NaN      67.098861  Partitioned            13
+14   3618.180428     1.227356e+06                    1136.000000     7267.743119      1.0  ...             -1.0       NaN      68.145098  Partitioned            14
+0    4680.281787     3.274729e+04                     211.958763    10743.340206      1.0  ...             -1.0       NaN       1.218336     Original             0
+1    8117.411523     1.130174e+05                     344.699588    18517.646091      1.0  ...             -1.0       NaN      16.470089     Original             1
+2    6108.622378     2.102735e+05                     557.034965    14721.986014      1.0  ...             -1.0       NaN      17.814290     Original             2
+3    5004.327869     2.923772e+05                     269.245902    12660.491803      1.0  ...             -1.0       NaN      18.848574     Original             3
+4    4278.254848     3.662487e+05                     103.822715    11140.518929      1.0  ...             -1.0       NaN      81.615280     Original             4
+5   12091.984436     4.562923e+05                     321.151751    27247.657588      1.0  ...             -1.0       NaN      82.637664     Original             5
+6     718.144346     5.652568e+05                      27.104367     3663.393412      1.0  ...             -1.0       NaN      83.639070     Original             6
+7     601.201295     6.457518e+05                      30.184815     3595.217775      1.0  ...             -1.0       NaN      90.398777     Original             7
+8     627.332325     7.314610e+05                      31.703480     3631.558749      1.0  ...             -1.0       NaN     146.123259     Original             8
+9     403.173373     8.184768e+05                      27.162945     3068.506302      1.0  ...             -1.0       NaN     147.538061     Original             9
+10    552.062965     9.036862e+05                      28.699803     3475.263581      1.0  ...             -1.0       NaN     151.103824     Original            10
+11    721.421343     9.993212e+05                      32.557612     3895.664179      1.0  ...             -1.0       NaN     238.483064     Original            11
+12    615.276573     1.071348e+06                      32.885904     3826.465281      1.0  ...             -1.0       NaN     432.536554     Original            12
+13    665.778123     1.164672e+06                      32.248834     3770.785899      1.0  ...             -1.0       NaN     433.540286     Original            13
+14  40794.045455     1.193953e+06                    1014.545455    82044.590909      1.0  ...             -1.0       NaN     434.801178     Original            14
+
+[30 rows x 16 columns]
+#+end_example
+
+Now finally plotting
+
+#+begin_src python :results file :session *python* :exports both
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+FIG_PATH='./figures/cumstretch_mustang_release_v0.2.0_66.png'
+
+SMALL_SIZE = 5
+MEDIUM_SIZE = 10
+BIGGER_SIZE = 12
+FIG_WIDTH = 5
+FIG_HEIGHT = 2
+
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=SMALL_SIZE)     # fontsize of the x and y labels
+plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
+plt.clf()
+plt.figure(figsize=(FIG_WIDTH,FIG_HEIGHT))
+ax = sns.lineplot(x='finished_day', y='cumul_stretch', hue='exp_type', data=all_mean_per_day, linewidth=0.5)
+ax.set_ylabel('Cumulative Stretch')
+ax.set_xlabel('Day')
+ax.legend(title='Experiment Type', frameon=True)
+fig = ax.get_figure()
+fig.savefig(FIG_PATH, format='png', dpi=300, bbox_inches='tight')
+FIG_PATH
+#+end_src
+
+#+RESULTS:
+[[file:./figures/cumstretch_mustang_release_v0.2.0_66.png]]
+
+Yep.
