@@ -1,0 +1,132 @@
+###########################################
+# LANL Mustang trace FAQ version 1.0 Beta #
+###########################################
+
+
+1. Trace description
+====================
+
+Mustang was an HPC cluster used for capacity computing at the Los Alamos
+National Lab (LANL) from 2011 to 2016. Capacity clusters such as Mustang are
+architected as cost-effective, general-purpose resources for a large number of
+users. Mustang was largely used by scientists, engineers, and software
+developers at LANL and it was allocated to these users at the granularity of
+physical nodes. The cluster consisted of 1600 identical compute nodes, with a
+total of 38400 AMD Opteron 6176 2.3GHz cores and 102TB RAM.
+
+This Mustang dataset covers the entire 61 months of the machine's operation from
+October 2011 to November 2016, which makes this the longest publicly available
+cluster to date. The Mustang trace is also unique because its jobs are shorter
+than those in existing HPC traces. Overall, it consists of 2.1 million
+multi-node jobs submitted by 565 users and collected by SLURM, an open-source
+cluster resource manager. Collected data include: timestampts for job stages
+from submission to termination, job properties such as size and owner, the job's
+return status, and a time budget per job that if exceeded causes the job to be
+killed.
+
+
+2. Scheduling policy
+====================
+
+The general scheduling policy is strongly fair-share dominated, however backfill
+is used even if the fair-share allocation is negative (i.e., user has exceeded
+their quota). Because SLURM knows the earliest time that the highest priority
+job can start, and which resources it will need, it can also determine which
+jobs can be started without delaying it. The backfill feature allows the
+scheduler to start other, lower-priority jobs so long as they do not delay the
+highest priority job. The scheduler policy for Mustang was the same in periods
+of ~6 months at a time, corresponding to different "campaigns". It remained
+fair-share dominated, but the individual project weightings change for each
+"campaign" period. Each campaign is expected to consist of the following phases:
+
+- Input and dataset validation: jobs that consist of a small number of nodes
+  compared to the dataset size
+- Problem partitioning: grid sizing
+- Parametric studies: sweet spot determination of job sizes, nodes, processes
+  per node, memory per process etc.
+- Computation
+- Analysis and visualization: jobs that are primarily I/O-bound, implying
+  different node use patterns
+
+Jobs that belong to an individual user can get cancelled in batches, where the
+timestamp and duration match across all the cancelled jobs. This is usually
+because job scripts allow users to specify multiple jobs linked together by
+explicitly stating their dependencies in the script. If one job fails or gets
+cancelled, the rest are automatically cancelled.
+
+
+3. Fields
+=========
+
+3.1 user_ID
+
+An identifier of the user submitting the job. There are 565 users in the trace,
+and user IDs have been anonymized using random numbers.
+
+3.2 group_ID
+
+An identifier of the group of the user submitting the job. There are 565 groups
+in the trace, as each user belongs to the same group.
+
+3.3 submit_time
+
+The time when the job was submitted to the scheduler's queue. The Mustang trace
+covers the period from October 27, 2011 until November 8, 2016.
+
+3.4 start_time
+
+The time when the job began executing. The Mustang trace covers the period from
+October 27, 2011 until November 8, 2016.
+
+3.5 end_time
+
+The time when the job completed executing. The Mustang trace covers the period
+from October 27, 2011 until November 8, 2016.
+
+3.6 job_status
+
+The return code of a job. There are three job outcomes:
+- Completed: the job completed successfully without reporting errors
+- Cancelled: the job was cancelled by the user or an admin before completing
+- Timeout: the job exceeded its wallclock limit and was forcefully terminated
+  (see section 3.9)
+
+3.7 node_count
+
+The number of nodes assigned to the job by the scheduler. Since this is a
+homogeneous cluster, and each node consists of 24 identical CPU cores, this
+field can be used to derive the total number of cores assigned to the job by
+the scheduler.
+
+3.8 tasks_requested
+
+The number of tasks requested, where each task corresponds to a physical CPU
+core. This may not be equal to the number of actual cores assigned to a job,
+as jobs at LANL are assigned entire physical nodes. To calculate the total
+number of physical CPU cores assigned to the job see section 3.7.
+
+3.9 wallclock_limit
+
+The requested time quota for the job. Typically ranges from 1 to 960 minutes
+(i.e., 16 hours which is the max wall clock time for Mustang). There are a few
+outliers of jobs with longer wallclock limits, however.
+
+
+4. Contact info
+===============
+
+Please direct inquiries, feedback, or suggestions regarding this trace to the
+ATLAS mailing list at info@project-atlas.org
+
+
+5. Usage
+========
+
+Please cite the following paper when you publish work that uses this trace:
+
+    George Amvrosiadis, Jun Woo Park, Gregory R. Ganger, Garth A. Gibson,
+    Elisabeth Baseman, Nathan DeBardeleben. "On the diversity of cluster
+    workloads and its impact on research results." In Proceedings of the 2018
+    USENIX Annual Technical Conference, Boston, MA, July 11-13, 2018.
+
+
