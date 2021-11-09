@@ -1,0 +1,163 @@
+###########################################
+# LANL Trinity (formatted) trace FAQ version 1.0 Beta #
+###########################################
+
+
+1. Trace description
+====================
+
+In 2018, Trinity is the largest supercomputer at the Los Alamos National Lab
+(LANL) and it is used for capability computing. Capability clusters are a
+large-scale, high-demand resource introducing novel hardware technologies that
+aid in achieving crucial computing milestones, such as higher-resolution climate
+and astrophysics models. Trinity's hardware was stood up in two pre-production
+phases before being put into full production use and out trace was collected
+before the second phase completed. At the time of data collection, Trinity
+consisted of 9408 identical compute nodes, a total of 301056 Intel Xeon
+E5-2698v3 2.3GHz cores and 1.2PB RAM, making this the largest cluster with a
+publicly available trace by number of CPU cores.
+
+This Trinity dataset covers 3 months of the machine's operation from February to
+April 2016. During that time, Trinity was operating in OpenScience mode, i.e.,
+the machine was undergoing beta testing and was available to a wider number of
+users than it is expected to have after it receives its final security
+classification. We note that OpenScience workloads are representative of a
+capability supercomputer's workload, as they occur roughly every 18 months when
+a new machine is introduced, or before an older one is decommissioned. The
+dataset consists of 25237 multi-node jobs issued by 88 users and collected by
+MOAB. Collected data include: timestampts for job stages
+from submission to termination, job properties such as size and owner, the job's
+return status, and a time budget per job that if exceeded causes the job to be
+killed. This dataset is a processed variant of the raw Trinity dataset. Job
+events have been processed to return a job-level view of the trace rather than
+an event-level view.
+
+
+2. Scheduling policy
+====================
+
+The general scheduling policy is strongly fair-share dominated, however backfill
+is used even if the fair-share allocation is negative (i.e., user has exceeded
+their quota). Because MOAB knows the earliest time that the highest priority
+job can start, and which resources it will need, it can also determine which
+jobs can be started without delaying it. The backfill feature allows the
+scheduler to start other, lower-priority jobs so long as they do not delay the
+highest priority job. The scheduler policy for Mustang was the same in periods
+of ~6 months at a time, corresponding to different "campaigns". It remained
+fair-share dominated, but the individual project weightings change for each
+"campaign" period. Each campaign is expected to consist of the following phases:
+
+- Input and dataset validation: jobs that consist of a small number of nodes
+  compared to the dataset size
+- Problem partitioning: grid sizing
+- Parametric studies: sweet spot determination of job sizes, nodes, processes
+  per node, memory per process etc.
+- Computation
+- Analysis and visualization: jobs that are primarily I/O-bound, implying
+  different node use patterns
+
+Jobs that belong to an individual user can get cancelled in batches, where the
+timestamp and duration match across all the cancelled jobs. This is usually
+because job scripts allow users to specify multiple jobs linked together by
+explicitly stating their dependencies in the script. If one job fails or gets
+cancelled, the rest are automatically cancelled.
+
+
+3. Fields
+=========
+
+The dataset comprises numberous fileds that follow the Workload Event Format as
+seen in http://docs.adaptivecomputing.com/9-0-3/MWM/Content/topics/
+moabWorkloadManager/topics/analyzing/workloadtrace.html. Some fields that are
+not populated in the original trace have been removed. Classes and Event Types
+have been renamed to uppercase format to represent categorical types. MOAB uses
+hyphens ("-") to indicate fields with not values; these have been replaced with
+empty space (""). Temporal data was originally in epoch form, but has since been
+converted to a datetime format.
+
+3.1 user_ID
+
+An identifier of the user submitting the job. There are 88 users in the trace,
+and user IDs have been anonymized using random numbers.
+
+3.2 group_ID
+
+An identifier of the primary group of the user submitting the job. There are 89
+groups in the trace, with each user belonging to a distinct group, and some
+switching their group partway through the trace.
+
+3.3 submit_time
+
+The time when the job was submitted to the scheduler's queue. The Trinity trace
+covers the period from February 2, 2016 until April 21, 2016.
+
+3.4 start_time
+
+The time when the job began executing. The Trinity trace covers the period from
+February 2, 2016 until April 21, 2016.
+
+3.5 dispatch_time
+
+The time when the scheduler requested that the job begin executing. The Trinity
+trace covers the period from February 2, 2016 until April 21, 2016.
+
+3.6 queue_time
+
+The time when the job met all fairness policies.
+
+3.7 end_time
+
+The time when the job completed executing. The Trinity trace covers the period
+from February 2, 2016 until April 21, 2016.
+
+3.8 wallclock_limit
+
+The maximum allowed job duration in seconds. Typically ranges from 1 to 2160
+minutes (i.e., 36 hours which is the max wall clock time for Trinity). There
+can be outliers of jobs with longer wallclock limits, however.
+
+3.9 job_status
+
+The type of scheduling event. The following types are possible:
+- JOBSTART: the first event of a job recorded by the scheduler
+- JOBEND: the last event of a job that has terminated successfully, as recorded
+  by the scheduler
+- JOBFAIL: the last event of a job that has terminated unsuccessfully, as
+  recorded by the scheduler
+- JOBCANCEL: the last event of a job that a user has terminated forcefully,
+  as recorded by the scheduler
+
+3.10 node_count
+
+The number of nodes requested by the job from the scheduler. If a job is started
+then it can be assumed that this request has been fulfilled. Since this is a
+homogeneous cluster, and each node consists of 32 identical CPU cores, this
+field can be used to derive the total number of cores assigned to the job by
+the scheduler. A zero value indicated that the requested number of nodes was not
+specified by the user.
+
+3.11 tasks_requested
+
+The number of tasks requested, where each task corresponds to a physical CPU
+core. This may not be equal to the number of actual cores assigned to a job,
+as jobs at LANL are assigned entire physical nodes. To calculate the total
+number of physical CPU cores assigned to the job see section 3.10.
+
+4. Contact info
+===============
+
+Please direct inquiries, feedback, or suggestions regarding this trace to the
+ATLAS mailing list at info@project-atlas.org
+
+
+5. Usage
+========
+
+Please cite the following paper when you publish work that uses this trace:
+
+    George Amvrosiadis, Jun Woo Park, Gregory R. Ganger, Garth A. Gibson,
+    Elisabeth Baseman, Nathan DeBardeleben. "On the diversity of cluster
+    workloads and its impact on research results." In Proceedings of the 2018
+    USENIX Annual Technical Conference, Boston, MA, July 11-13, 2018.
+
+
