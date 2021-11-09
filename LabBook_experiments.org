@@ -80,3 +80,22 @@
       robin ./expe_partitioned_mustang.yaml
 
       Once ready, the results will be in results/test_mustang
+
+** [2021-11-09 mar.]
+
+*** General Meeting
+- The workloads were selected and filtered
+- We will create a python script to change the workload and platform, and run the simulation. It should be something like:
+
+  for platform in platforms:
+     for workload in workloads:
+        robin_file =
+          'batcmd: batsim -p ../platforms/' + platform + ' -w ../workloads/' + workload + ' -e ./results/partitioned_mustang/' + workload +
+          'failure-timeout: 5' +
+          'output-dir: ./results/' + workload +
+          'ready-timeout: 10' +
+          'schedcmd: batsched -v easy_bf_fast' +
+          'simulation-timeout: 604800' +
+          'success-timeout: 3600' +
+        save_robin_file(robin_file)
+        execute_robin_file(robin_file)
