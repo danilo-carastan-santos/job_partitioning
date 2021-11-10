@@ -1,0 +1,9 @@
+batcmd: 'batsim -p ../platforms/HPC2N-2002-2.2-cln.xml -w ../workloads/json/original/two_weeks/HPC2N-2002-2.2-cln_80.json
+  -e ./results/original/two_weeks/HPC2N-2002-2.2-cln/out_HPC2N-2002-2 --forward-profiles-on-submission
+  --enable-dynamic-jobs --enable-profile-reuse '
+failure-timeout: '10'
+output-dir: ./results/original/two_weeks/HPC2N-2002-2.2-cln/
+ready-timeout: '10'
+schedcmd: batsched -v easy_bf_fast
+simulation-timeout: '604800'
+success-timeout: '3600'

@@ -1,0 +1,9 @@
+batcmd: 'batsim -p ../platforms/trinity_formatted_release_v0.1.0.xml -w ../workloads/json/partitioned/two_weeks/trinity_formatted_release_v0.1.0_0.json
+  -e ./results/partitioned/two_weeks/trinity_formatted_release_v0.1.0/out_trinity_formatted_release_v0
+  --forward-profiles-on-submission --enable-dynamic-jobs --enable-profile-reuse '
+failure-timeout: '10'
+output-dir: ./results/partitioned/two_weeks/trinity_formatted_release_v0.1.0/
+ready-timeout: '10'
+schedcmd: batsched -v easy_bf_fast
+simulation-timeout: '604800'
+success-timeout: '3600'
