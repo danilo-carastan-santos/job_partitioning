@@ -6,6 +6,11 @@ import sys
 import random
 
 def preparing_experiments(platforms_path, workloads_path, experiments_description_path, output_dir, output_dir_path, type_of_job, length_of_partition):
+    """
+    Prepare a robin file description for each experiment, by platform, workload and type_of_job, and save them in yaml files
+    in the experiments_description_path.
+    """
+    
     cmd = 'ls ' + platforms_path
     list_of_platforms = subprocess.getoutput(cmd).split("\n")
     print("List of platforms: ", list_of_platforms)
@@ -50,21 +55,32 @@ def preparing_experiments(platforms_path, workloads_path, experiments_descriptio
                         yaml.dump(robin_file, file)
 
 def select_experiments_randomly(list_of_experiments, number_of_experiments_to_run):
+    """
+    Receive a number_of_experiments_to_run and a list_of_experiments.
+    Generate n random numbers (number_of_experiments_to_run) and select experiments from list_of_experiments in such positions.
+    Return such selected list. 
+    Notice that we receive a seed, to use the same random number for both types of experiments, original and partitioned.
+    """
+
     random_positions = random.sample(range(0, len(list_of_experiments)), number_of_experiments_to_run)
     list_of_experiments_filtered = []
     for position in random_positions:
         list_of_experiments_filtered.append(list_of_experiments[position])
     return list_of_experiments_filtered
 
-def running_experiments(workloads_path, experiments_description_path, type_of_job, length_of_partition, nix_env_path, number_of_experiments_to_run):      
+def list_experiments(workloads_path, experiments_description_path, type_of_job, length_of_partition, nix_env_path, number_of_experiments_to_run, random_seed):
+    """
+    Check all experiment files and list them together. Return such list.
+    """
     
-    # TODO To loop the type_of_job here, Turn it in types_of_job
-    
+    # Use a random seed to get the same results for both original and partitioned jobs
+    random.seed(random_seed) 
+
     cmd = "ls " + workloads_path
     workloads_name = subprocess.getoutput(cmd).split("\n")
-    print("Names of workloads: ", workloads_name)
     
-    # Loop in the robin files and execute it
+    # Loop in the robin files and add them in the list_of_executions
+    list_of_executions = []
     for workload in workloads_name:
         experiment_description_path = experiments_description_path + "/" + type_of_job + "/" + length_of_partition + "/" + workload
         cmd = "ls " + experiment_description_path
@@ -74,12 +90,37 @@ def running_experiments(workloads_path, experiments_description_path, type_of_jo
 
         for experiment in list_of_experiments_filtered:
             cmd = "nix-shell " + nix_env_path + " --command 'robin " + experiment_description_path + "/" + experiment + "'"
-            print(cmd)
-            #os.system(cmd)
+            list_of_executions.append(cmd)
+
+    return list_of_executions, workloads_name
+
+def sort_experiments_by_workload(list_of_experiments, list_of_workloads):
+    """
+    Sort the list_of_experiments by a sorted list_of_workloads. 
+    This method help us to organize the order of execution of the experiments. 
+    This way we can run all experiments from both types original and parititioned by workload.
+    """
+
+    list_of_experiments_sorted = []
+    for workload in sorted(list_of_workloads):
+        for experiment in list_of_experiments:
+            if (workload in experiment):
+                list_of_experiments_sorted.append(experiment)
+    return list_of_experiments_sorted
+
+def run_experiments(list_of_experiments):
+    """
+    Run all experiment in list_of_experiments.
+    """
+
+    for experiment in list_of_experiments:
+        print("-- Executing the following: \n" + experiment + "\n")
+        #print(experiment)
+        #os.system(experiment)
 
 def print_parameters():
     str = "\nPlease, use one of the following parameters: \n\
-    -h                 | help \n\
+    -h | Help \n\
     -g | Generate the expe_.yaml files\n\
     -r <num_of_workloads> | Sort the num_of_workloads specified by workload and run them.\n"
 
@@ -88,9 +129,7 @@ def print_parameters():
 
 def main():
     
-    print ('Number of arguments:', len(sys.argv), 'arguments.')
-    print ('Argument List:', str(sys.argv))
-
+    # Define parameters
     platforms_path = "../platforms"
     length_of_partition = "two_weeks"
     experiments_description_path = "./description"
@@ -98,8 +137,14 @@ def main():
     output_dir = "./results/"
     output_dir_path = "../../../../results/" # Path from inside the expe.yaml files
     type_of_jobs = ["original", "partitioned"]
+    random_seed = random.random()
 
+    # List of command lines to execute each experiment
+    list_of_executions_combined = []
+
+    # Check and execute the methods by parameters
     argvs = sys.argv
+
     if (len(argvs) == 1):
         print_parameters()
         return
@@ -123,17 +168,29 @@ def main():
                     type_of_job,
                     length_of_partition
                 )
+
         elif(argvs[1] == "-r"):
             if (len(argvs) == 3):
                 for type_of_job in type_of_jobs:
+
+                    # Get the list of experiments
                     workloads_path = "../workloads/json/" + type_of_job + "/two_weeks"
-                    running_experiments(
+                    list_of_executions, list_of_workloads = list_experiments(
                         workloads_path, 
                         experiments_description_path, 
                         type_of_job, 
                         length_of_partition, 
                         nix_env_path,
-                        int(argvs[2]))
+                        int(argvs[2]),
+                        random_seed)
+                    list_of_executions_combined += list_of_executions
+
+                # Sort the list of exeuctions by workload. 
+                # Then we will run original and partitioned in sequence (for each workload).
+                list_of_executions_combined = sort_experiments_by_workload(list_of_executions_combined, list_of_workloads)
+                
+                # Run the experiments
+                run_experiments(list_of_executions_combined)
 
         else:
            print_parameters()
