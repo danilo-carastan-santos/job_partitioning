@@ -4,8 +4,15 @@ import json
 import yaml
 import sys
 import random
+import time
 
-def preparing_experiments(platforms_path, workloads_path, experiments_description_path, output_dir, output_dir_path, type_of_job, length_of_partition):
+def preparing_experiments(
+    platforms_path,
+    workloads_path,
+    experiments_description_path,
+    output_dir,
+    type_of_job,
+    length_of_partition):
     """
     Prepare a robin file description for each experiment, by platform, workload and type_of_job, and save them in yaml files
     in the experiments_description_path.
@@ -29,26 +36,25 @@ def preparing_experiments(platforms_path, workloads_path, experiments_descriptio
                 cmd = "mkdir " + experiment_description_full_path
                 os.system(cmd)
                 
-                results_path = output_dir + type_of_job + "/" + length_of_partition + "/" + workload_name + "/"
+                results_path = output_dir + "/" + type_of_job + "/" + length_of_partition + "/" + workload_name #+ "/"
                 cmd = "mkdir " + results_path
-                experiments_results_path = output_dir_path + type_of_job + "/" + length_of_partition + "/" + workload_name + "/"
                 os.system(cmd)
                 
                 for workload in list_of_workloads:
+                    output_path = results_path + "/" + workload
+                    cmd = "mkdir " + results_path
+                    os.system(cmd)
                     robin_file = {
                         "batcmd": "batsim " \
                             "-p " + platforms_path + "/" + platform + " " \
-                            "-w " + workloads_path + "/" + workload + " " \
-                            "-e " + results_path + "out" + "_" + workload.split(".")[0] + " " \
-                            "--forward-profiles-on-submission " \
-                            "--enable-dynamic-jobs " \
-                            "--enable-profile-reuse ",
-                        "failure-timeout": "10",
-                        "output-dir": results_path,
-                        "ready-timeout": "10",
+                            "-w " + workloads_path + "/" + workload_name + "/" + workload + " " \
+                            "-e " + output_path + "/out_" + workload.split(".")[0] + " ",
+                        "failure-timeout": 10,
+                        "output-dir": output_path,
+                        "ready-timeout": 10,
                         "schedcmd": "batsched -v easy_bf_fast",
-                        "simulation-timeout": "604800",
-                        "success-timeout": "3600"
+                        "simulation-timeout": 604800,
+                        "success-timeout": 3600
                     }
                     #print(robin_file)
                     with open(experiment_description_full_path + '/exp_' + workload.split('.json')[0] + '.yaml', 'w') as file:
@@ -112,11 +118,19 @@ def run_experiments(list_of_experiments):
     """
     Run all experiment in list_of_experiments.
     """
-
+    global_start_time = time.time()
     for experiment in list_of_experiments:
-        print("-- Executing the following: \n" + experiment + "\n")
-        #print(experiment)
-        #os.system(experiment)
+        local_start_time = time.time()
+        print("---------------------------------------------------------\n") 
+        print("Executing the following: \n" + experiment + "\n")
+        os.system(experiment)
+        local_finish_time = time.time()
+        print("-- Simulation finished, duration: " + str(local_finish_time - local_start_time)  + " seconds\n")
+    global_finish_time = time.time()
+    print("---------------------------------------------------------")
+    print("---------------------------------------------------------\n")
+    print("All simulations were finished, global duration: " + str(global_finish_time - global_start_time) + " seconds\n")
+    return      
 
 def print_parameters():
     str = "\nPlease, use one of the following parameters: \n\
@@ -130,12 +144,17 @@ def print_parameters():
 def main():
     
     # Define parameters
-    platforms_path = "../platforms"
     length_of_partition = "two_weeks"
+    
+    platforms_path = "../platforms"
     experiments_description_path = "./description"
     nix_env_path = "./nix-env.nix"
-    output_dir = "./results/"
-    output_dir_path = "../../../../results/" # Path from inside the expe.yaml files
+    output_dir = "./results"
+    
+    # Path from inside the expe.yaml files
+    #platforms_dir_path = "../../../../../platforms"
+    #output_dir_path = "../../../../results" 
+    
     type_of_jobs = ["original", "partitioned"]
     random_seed = random.random()
 
@@ -159,12 +178,16 @@ def main():
                 os.system("mkdir ./results/" + type_of_job + "/" + length_of_partition)
 
                 workloads_path = "../workloads/json/" + type_of_job + "/two_weeks"
+                #workloads_dir_path = "../../../../../workloads/json/" + type_of_job + "/two_weeks"
+
                 preparing_experiments(
-                    platforms_path, 
-                    workloads_path, 
+                    platforms_path,
+                    #platforms_dir_path,
+                    workloads_path,
+                    #workloads_dir_path,
                     experiments_description_path,
                     output_dir,
-                    output_dir_path,
+                    #output_dir_path,
                     type_of_job,
                     length_of_partition
                 )
