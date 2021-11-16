@@ -245,6 +245,82 @@ FIG_PATH
 #+RESULTS:
 [[file:./figures/test_mustang_release_v0.2.0_66_long_jobs.png]]
 
+Plotting the ~df_workload['REQUESTED_TIME']~ distribution, and illustrating the
+960 minutes threshold
+
+#+begin_src python :results file :session *python* :exports both
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+FIG_PATH='./figures/test_mustang_release_v0.2.0_66_requestedtime_distribution.png'
+
+SMALL_SIZE = 5
+MEDIUM_SIZE = 10
+BIGGER_SIZE = 12
+FIG_WIDTH = 5
+FIG_HEIGHT = 2
+
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=SMALL_SIZE)     # fontsize of the x and y labels
+plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
+plt.clf()
+plt.figure(figsize=(FIG_WIDTH,FIG_HEIGHT))
+ax = sns.distplot(df_workload['REQUESTED_TIME'], hist=False, kde=True, kde_kws=dict(linewidth=0.5))
+plt.vlines(SEC_HALF_WALLTIME_LIMIT, 0, 1.0, color='r',lw=1.0)
+#ax.set_ylabel('Cumulative Flow Time')
+ax.set_xlabel('Requested processing time (s)')
+#ax.set_xlim((0,10000))
+ax.set_ylim(0,0.0008)
+fig = ax.get_figure()
+fig.savefig(FIG_PATH, format='png', dpi=300, bbox_inches='tight')
+FIG_PATH
+#+end_src
+
+#+RESULTS:
+[[file:./figures/test_mustang_release_v0.2.0_66_requestedtime_distribution.png]]
+
+Getting a zoomed view of the right part of the graph
+
+#+begin_src python :results file :session *python* :exports both
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+FIG_PATH='./figures/test_mustang_release_v0.2.0_66_requestedtime_distribution-zoomright.png'
+
+SMALL_SIZE = 5
+MEDIUM_SIZE = 10
+BIGGER_SIZE = 12
+FIG_WIDTH = 5
+FIG_HEIGHT = 2
+
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=SMALL_SIZE)     # fontsize of the x and y labels
+plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
+plt.clf()
+plt.figure(figsize=(FIG_WIDTH,FIG_HEIGHT))
+ax = sns.distplot(df_workload['REQUESTED_TIME'], hist=False, kde=True, kde_kws=dict(linewidth=0.5))
+plt.vlines(SEC_HALF_WALLTIME_LIMIT, 0, 1.0, color='r',lw=1.0)
+#ax.set_ylabel('Cumulative Flow Time')
+ax.set_xlabel('Requested processing time (s)')
+ax.set_xlim((56000,59000))
+ax.set_ylim(0,0.000006)
+fig = ax.get_figure()
+fig.savefig(FIG_PATH, format='png', dpi=300, bbox_inches='tight')
+FIG_PATH
+#+end_src
+
+#+RESULTS:
+[[file:./figures/test_mustang_release_v0.2.0_66_requestedtime_distribution-zoomright.png]]
 
 In this way, only 590 jobs (out of almost 100 thousand) would be afected by some
 partitioning, here taking into account only the ~REQUESTED_TIME~ as partitioning
@@ -636,7 +712,7 @@ df_partitioned.columns.values
 
 #+RESULTS:
 : 
-: >>> >>> >>> >>> >>> array(['job_id', 'workload_name', 'profile', 'submission_time',
+: >>> array(['job_id', 'workload_name', 'profile', 'submission_time',
 :        'requested_number_of_resources', 'requested_time', 'success',
 :        'final_state', 'starting_time', 'execution_time', 'finish_time',
 :        'waiting_time', 'turnaround_time', 'stretch',
@@ -653,6 +729,15 @@ print(df_partitioned['stretch'].mean())
 #+RESULTS:
 : 36.28605839024903
 : 5.5282016154646785
+
+#+begin_src python :results output :session *python* :exports both
+print(df_original['turnaround_time'].mean())
+print(df_partitioned['turnaround_time'].mean())
+#+end_src
+
+#+RESULTS:
+: 1744.6951034240776
+: 1326.5490420424937
 
 Ok, these results seem motivating. Now let's make a proper analyis. I start
 looking at the non-partitioned jobs.
@@ -689,20 +774,20 @@ df_partitioned
 
 #+RESULTS:
 #+begin_example
-              job_id workload_name  profile  submission_time  ...  consumed_energy  metadata  job_nb part_nb
-0            job_0_0            w0      267              0.0  ...             -1.0       NaN       0       0
-1            job_2_0            w0       98            285.0  ...             -1.0       NaN       2       0
-2            job_3_0            w0       98            286.0  ...             -1.0       NaN       3       0
-3            job_1_0            w0      182            210.0  ...             -1.0       NaN       1       0
-4            job_5_0            w0       13            482.0  ...             -1.0       NaN       5       0
-...              ...           ...      ...              ...  ...              ...       ...     ...     ...
-105681  job_99726_15            w0     3601        1261605.0  ...             -1.0       NaN   99726      15
-105682  job_99727_15            w0     3601        1261605.0  ...             -1.0       NaN   99727      15
-105683  job_99728_15            w0     3601        1261605.0  ...             -1.0       NaN   99728      15
-105684  job_99815_15            w0     3601        1261949.0  ...             -1.0       NaN   99815      15
-105685  job_99818_15            w0     3601        1262190.0  ...             -1.0       NaN   99818      15
+              job_id workload_name  profile  submission_time  requested_number_of_resources  ...  consumed_energy  metadata finish_day  job_nb  part_nb
+0            job_0_0            w0      267              0.0                             24  ...             -1.0       NaN        0.0       0        0
+1            job_2_0            w0       98            285.0                             24  ...             -1.0       NaN        0.0       2        0
+2            job_3_0            w0       98            286.0                             24  ...             -1.0       NaN        0.0       3        0
+3            job_1_0            w0      182            210.0                             24  ...             -1.0       NaN        0.0       1        0
+4            job_5_0            w0       13            482.0                             72  ...             -1.0       NaN        0.0       5        0
+...              ...           ...      ...              ...                            ...  ...              ...       ...        ...     ...      ...
+105681  job_99726_15            w0     3601        1261605.0                            480  ...             -1.0       NaN       14.0   99726       15
+105682  job_99727_15            w0     3601        1261605.0                            480  ...             -1.0       NaN       14.0   99727       15
+105683  job_99728_15            w0     3601        1261605.0                            240  ...             -1.0       NaN       14.0   99728       15
+105684  job_99815_15            w0     3601        1261949.0                           4008  ...             -1.0       NaN       14.0   99815       15
+105685  job_99818_15            w0     3601        1262190.0                           2016  ...             -1.0       NaN       14.0   99818       15
 
-[105686 rows x 19 columns]
+[105686 rows x 20 columns]
 #+end_example
 
 Let's get the ~job_nb~ with count 1 (non-partitioned jobs)
@@ -733,20 +818,20 @@ original_df_non_partitioned
 #+RESULTS:
 #+begin_example
 
->>>           job_id workload_name  profile  submission_time  requested_number_of_resources  ...   stretch    allocated_resources consumed_energy  metadata  job_nb
-0          job_0            w0      267              0.0                             24  ...  1.000009                   0-23            -1.0       NaN       0
-1          job_2            w0       98            285.0                             24  ...  1.000018                   0-23            -1.0       NaN       2
-2          job_3            w0       98            286.0                             24  ...  1.000018                  48-71            -1.0       NaN       3
-3          job_1            w0      182            210.0                             24  ...  1.000013                  24-47            -1.0       NaN       1
-4          job_5            w0       13            482.0                             72  ...  1.000138                   0-71            -1.0       NaN       5
-...           ...      ...              ...                            ...  ...       ...                    ...             ...       ...     ...
-99790  job_99821            w0     3823        1209260.0                            240  ...  1.159301            37848-38087            -1.0       NaN   99821
-99791  job_99819            w0     4402        1209260.0                            240  ...  1.138348            37368-37607            -1.0       NaN   99819
-99792  job_99549            w0    10808        1204311.0                            600  ...  1.000000  9432-9671 10008-10367            -1.0       NaN   99549
-99793  job_99565            w0    10805        1204793.0                             24  ...  1.000000            20496-20519            -1.0       NaN   99565
-99794  job_99823            w0     4392        1209261.0                            240  ...  1.630921            28008-28247            -1.0       NaN   99823
+>>>           job_id workload_name  profile  submission_time  requested_number_of_resources  ...    allocated_resources  consumed_energy metadata  finish_day  job_nb
+0          job_0            w0      267              0.0                             24  ...                   0-23             -1.0      NaN         0.0       0
+1          job_2            w0       98            285.0                             24  ...                   0-23             -1.0      NaN         0.0       2
+2          job_3            w0       98            286.0                             24  ...                  48-71             -1.0      NaN         0.0       3
+3          job_1            w0      182            210.0                             24  ...                  24-47             -1.0      NaN         0.0       1
+4          job_5            w0       13            482.0                             72  ...                   0-71             -1.0      NaN         0.0       5
+...           ...      ...              ...                            ...  ...                    ...              ...      ...         ...     ...
+99790  job_99821            w0     3823        1209260.0                            240  ...            37848-38087             -1.0      NaN        14.0   99821
+99791  job_99819            w0     4402        1209260.0                            240  ...            37368-37607             -1.0      NaN        14.0   99819
+99792  job_99549            w0    10808        1204311.0                            600  ...  9432-9671 10008-10367             -1.0      NaN        14.0   99549
+99793  job_99565            w0    10805        1204793.0                             24  ...            20496-20519             -1.0      NaN        14.0   99565
+99794  job_99823            w0     4392        1209261.0                            240  ...            28008-28247             -1.0      NaN        14.0   99823
 
-[99331 rows x 18 columns]
+[99331 rows x 19 columns]
 #+end_example
 
 Calculating the mean stretch for the non-partitoned jobs from the two experiments
@@ -760,6 +845,15 @@ print(new_df_non_partitioned['stretch'].mean())
 : 36.46061307628032
 : 5.726460424912665
 
+#+begin_src python :results output :session *python* :exports both
+print(original_df_non_partitioned['turnaround_time'].mean())
+print(new_df_non_partitioned['turnaround_time'].mean())
+#+end_src
+
+#+RESULTS:
+: 1499.8320405088746
+: 901.4148151414763
+
 The above is the mean strech for the original and for the partitioned workload,
 taking into account the non-partitioned jobs.
 
@@ -772,20 +866,20 @@ new_df_partitioned
 #+RESULTS:
 #+begin_example
 
->>>               job_id workload_name  profile  submission_time  ...  consumed_energy  metadata  job_nb part_nb
-38          job_23_0            w0     3601           6829.0  ...             -1.0       NaN      23       0
-39          job_24_0            w0     3601           6835.0  ...             -1.0       NaN      24       0
-46          job_28_0            w0     3601           7912.0  ...             -1.0       NaN      28       0
-47          job_32_0            w0     3601           8501.0  ...             -1.0       NaN      32       0
-48          job_33_0            w0     3601           8527.0  ...             -1.0       NaN      33       0
-...           ...      ...              ...  ...              ...       ...     ...     ...
-105681  job_99726_15            w0     3601        1261605.0  ...             -1.0       NaN   99726      15
-105682  job_99727_15            w0     3601        1261605.0  ...             -1.0       NaN   99727      15
-105683  job_99728_15            w0     3601        1261605.0  ...             -1.0       NaN   99728      15
-105684  job_99815_15            w0     3601        1261949.0  ...             -1.0       NaN   99815      15
-105685  job_99818_15            w0     3601        1262190.0  ...             -1.0       NaN   99818      15
+>>>               job_id workload_name  profile  submission_time  requested_number_of_resources  ...  consumed_energy  metadata finish_day  job_nb  part_nb
+38          job_23_0            w0     3601           6829.0                             24  ...             -1.0       NaN        0.0      23        0
+39          job_24_0            w0     3601           6835.0                             24  ...             -1.0       NaN        0.0      24        0
+46          job_28_0            w0     3601           7912.0                             24  ...             -1.0       NaN        0.0      28        0
+47          job_32_0            w0     3601           8501.0                            768  ...             -1.0       NaN        0.0      32        0
+48          job_33_0            w0     3601           8527.0                            768  ...             -1.0       NaN        0.0      33        0
+...           ...      ...              ...                            ...  ...              ...       ...        ...     ...      ...
+105681  job_99726_15            w0     3601        1261605.0                            480  ...             -1.0       NaN       14.0   99726       15
+105682  job_99727_15            w0     3601        1261605.0                            480  ...             -1.0       NaN       14.0   99727       15
+105683  job_99728_15            w0     3601        1261605.0                            240  ...             -1.0       NaN       14.0   99728       15
+105684  job_99815_15            w0     3601        1261949.0                           4008  ...             -1.0       NaN       14.0   99815       15
+105685  job_99818_15            w0     3601        1262190.0                           2016  ...             -1.0       NaN       14.0   99818       15
 
-[6355 rows x 19 columns]
+[6355 rows x 20 columns]
 #+end_example
 
 #+begin_src python :results output :session *python* :exports both
@@ -796,6 +890,15 @@ print(new_df_partitioned['stretch'].mean())
 #+RESULTS:
 : 1.2583987575757576
 : 2.429343110149489
+
+#+begin_src python :results output :session *python* :exports both
+print(original_df_partitioned['turnaround_time'].mean())
+print(new_df_partitioned['turnaround_time'].mean())
+#+end_src
+
+#+RESULTS:
+: 50881.044401262625
+: 7971.554217857592
 
 This is for the partitioned jobs. But taking the mean stretch directly here may
 be not a good metric. We need to define a reasonable calculation of stretch in
@@ -814,20 +917,20 @@ sum_new_df_partitioned
 
 #+RESULTS:
 #+begin_example
-     profile  submission_time  requested_number_of_resources  requested_time  success  starting_time  ...  waiting_time  turnaround_time    stretch  consumed_energy  metadata  part_nb
-0      43463         369577.0                            312         90000.0       13   3.695770e+05  ...        0.0234       43463.0234  13.000007            -13.0       0.0       78
-1      36717         273185.0                            264         75600.0       11   2.731850e+05  ...        0.0198       36717.0198  11.000003            -11.0       0.0       55
-2      41103         332544.0                            288         82800.0       12   3.325440e+05  ...        0.0216       41103.0216  12.000001            -12.0       0.0       66
-3      57616         568016.0                          12288        115200.0       16   5.680160e+05  ...        0.0288       57616.0288  16.000000            -16.0       0.0      120
-4      57616         568432.0                          12288        115200.0       16   5.684320e+05  ...        0.0288       57616.0288  16.000000            -16.0       0.0      120
-..       ...              ...                            ...             ...      ...            ...  ...           ...              ...        ...              ...       ...      ...
-490    57616       19753680.0                           7680        115200.0       16   1.975424e+07  ...      555.0344       58171.0344  16.154126            -16.0       0.0      120
-491    57616       19753680.0                           7680        115200.0       16   1.975424e+07  ...      555.0440       58171.0440  16.154141            -16.0       0.0      120
-492    57616       19753680.0                           3840        115200.0       16   1.975424e+07  ...      555.0536       58171.0536  16.154141            -16.0       0.0      120
-493    57616       19759184.0                          64128        115200.0       16   1.975987e+07  ...      684.0484       58300.0484  16.189954            -16.0       0.0      120
-494    57616       19763040.0                          32256        115200.0       16   1.976360e+07  ...      564.0594       58180.0594  16.156635            -16.0       0.0      120
+     profile  submission_time  requested_number_of_resources  requested_time  success  starting_time  ...  turnaround_time    stretch  consumed_energy  metadata  finish_day  part_nb
+0      43463         369577.0                            312         90000.0       13   3.695770e+05  ...       43463.0234  13.000007            -13.0       0.0         0.0       78
+1      36717         273185.0                            264         75600.0       11   2.731850e+05  ...       36717.0198  11.000003            -11.0       0.0         0.0       55
+2      41103         332544.0                            288         82800.0       12   3.325440e+05  ...       41103.0216  12.000001            -12.0       0.0         0.0       66
+3      57616         568016.0                          12288        115200.0       16   5.680160e+05  ...       57616.0288  16.000000            -16.0       0.0         0.0      120
+4      57616         568432.0                          12288        115200.0       16   5.684320e+05  ...       57616.0288  16.000000            -16.0       0.0         0.0      120
+..       ...              ...                            ...             ...      ...            ...  ...              ...        ...              ...       ...         ...      ...
+490    57616       19753680.0                           7680        115200.0       16   1.975424e+07  ...       58171.0344  16.154126            -16.0       0.0       224.0      120
+491    57616       19753680.0                           7680        115200.0       16   1.975424e+07  ...       58171.0440  16.154141            -16.0       0.0       224.0      120
+492    57616       19753680.0                           3840        115200.0       16   1.975424e+07  ...       58171.0536  16.154141            -16.0       0.0       224.0      120
+493    57616       19759184.0                          64128        115200.0       16   1.975987e+07  ...       58300.0484  16.189954            -16.0       0.0       224.0      120
+494    57616       19763040.0                          32256        115200.0       16   1.976360e+07  ...       58180.0594  16.156635            -16.0       0.0       224.0      120
 
-[495 rows x 14 columns]
+[495 rows x 15 columns]
 #+end_example
 
 Now, we recalculate the strech, taking into account the sum of the ~waiting_time~
@@ -866,7 +969,7 @@ print(sum_new_df_partitioned['stretch'].mean())
 
 #+RESULTS:
 : 1.2583987575757576
-: 2.4958060586025006
+: 31.188839323232322
 
 This ~2.4958060586025006~ stretch value is almost the same as if we calculate the
 take the mean directly from the partitions. But i believe that summing the
@@ -914,6 +1017,7 @@ their values for each day.
 #+begin_src python :results value :session *python* :exports both
 partitioned_mean_per_day=df_partitioned.groupby(['finish_day']).mean().reset_index(drop=True)
 partitioned_mean_per_day['cumul_stretch']=partitioned_mean_per_day['stretch'].cumsum()
+partitioned_mean_per_day['cumul_flowtime']=partitioned_mean_per_day['turnaround_time'].cumsum()
 partitioned_mean_per_day['exp_type']='Partitioned'
 partitioned_mean_per_day['finished_day']=partitioned_mean_per_day.index
 partitioned_mean_per_day
@@ -921,24 +1025,24 @@ partitioned_mean_per_day
 
 #+RESULTS:
 #+begin_example
-        profile  submission_time  requested_number_of_resources  requested_time  success  ...  consumed_energy  metadata  cumul_stretch     exp_type  finished_day
-0   2573.714286     4.220214e+04                     927.699248     5684.321805      1.0  ...             -1.0       NaN       1.012409  Partitioned             0
-1   2801.280063     1.157234e+05                    1122.420886     6053.196203      1.0  ...             -1.0       NaN       2.613139  Partitioned             1
-2   2450.032573     2.092839e+05                    2091.205212     5608.371336      1.0  ...             -1.0       NaN       3.908199  Partitioned             2
-3   2772.454945     3.020108e+05                    1386.197802     5991.982418      1.0  ...             -1.0       NaN       5.040139  Partitioned             3
-4   3193.110617     3.717409e+05                     519.333757     7338.358551      1.0  ...             -1.0       NaN      11.916520  Partitioned             4
-5   3894.442786     4.583247e+05                     618.467662     8392.388060      1.0  ...             -1.0       NaN      12.916527  Partitioned             5
-6    733.539356     5.654086e+05                      41.365684     3664.833994      1.0  ...             -1.0       NaN      13.993757  Partitioned             6
-7    615.127288     6.454150e+05                     103.072657     3479.891292      1.0  ...             -1.0       NaN      27.762150  Partitioned             7
-8    521.676735     7.310340e+05                      73.166086     3314.072718      1.0  ...             -1.0       NaN      31.935969  Partitioned             8
-9    408.983340     8.184789e+05                      60.228920     3060.496630      1.0  ...             -1.0       NaN      32.966798  Partitioned             9
-10   543.242787     9.037806e+05                      81.857705     3358.208689      1.0  ...             -1.0       NaN      34.428982  Partitioned            10
-11   585.560347     1.005648e+06                     111.389313     3362.519909      1.0  ...             -1.0       NaN      56.299096  Partitioned            11
-12   695.165836     1.083062e+06                     116.461872     3582.675477      1.0  ...             -1.0       NaN      66.096654  Partitioned            12
-13   607.539887     1.164741e+06                      82.594993     3482.554492      1.0  ...             -1.0       NaN      67.098861  Partitioned            13
-14  3618.180428     1.227356e+06                    1136.000000     7267.743119      1.0  ...             -1.0       NaN      68.145098  Partitioned            14
+        profile  submission_time  requested_number_of_resources  requested_time  success  ...  metadata  cumul_stretch  cumul_flowtime     exp_type  finished_day
+0   2573.714286     4.220214e+04                     927.699248     5684.321805      1.0  ...       NaN       1.012409     2575.554011  Partitioned             0
+1   2801.280063     1.157234e+05                    1122.420886     6053.196203      1.0  ...       NaN       2.613139     7312.683403  Partitioned             1
+2   2450.032573     2.092839e+05                    2091.205212     5608.371336      1.0  ...       NaN       3.908199    10458.263628  Partitioned             2
+3   2772.454945     3.020108e+05                    1386.197802     5991.982418      1.0  ...       NaN       5.040139    13405.469190  Partitioned             3
+4   3193.110617     3.717409e+05                     519.333757     7338.358551      1.0  ...       NaN      11.916520    22934.806624  Partitioned             4
+5   3894.442786     4.583247e+05                     618.467662     8392.388060      1.0  ...       NaN      12.916527    26829.251215  Partitioned             5
+6    733.539356     5.654086e+05                      41.365684     3664.833994      1.0  ...       NaN      13.993757    27568.159107  Partitioned             6
+7    615.127288     6.454150e+05                     103.072657     3479.891292      1.0  ...       NaN      27.762150    29694.507337  Partitioned             7
+8    521.676735     7.310340e+05                      73.166086     3314.072718      1.0  ...       NaN      31.935969    30417.073748  Partitioned             8
+9    408.983340     8.184789e+05                      60.228920     3060.496630      1.0  ...       NaN      32.966798    30840.132935  Partitioned             9
+10   543.242787     9.037806e+05                      81.857705     3358.208689      1.0  ...       NaN      34.428982    31416.097403  Partitioned            10
+11   585.560347     1.005648e+06                     111.389313     3362.519909      1.0  ...       NaN      56.299096    33599.495403  Partitioned            11
+12   695.165836     1.083062e+06                     116.461872     3582.675477      1.0  ...       NaN      66.096654    36409.690662  Partitioned            12
+13   607.539887     1.164741e+06                      82.594993     3482.554492      1.0  ...       NaN      67.098861    37018.396418  Partitioned            13
+14  3618.180428     1.227356e+06                    1136.000000     7267.743119      1.0  ...       NaN      68.145098    40713.670011  Partitioned            14
 
-[15 rows x 16 columns]
+[15 rows x 17 columns]
 #+end_example
 
 Now doing the same for ~df_original~.
@@ -946,6 +1050,7 @@ Now doing the same for ~df_original~.
 #+begin_src python :results value :session *python* :exports both
 original_mean_per_day=df_original.groupby(['finish_day']).mean().reset_index(drop=True)
 original_mean_per_day['cumul_stretch']=original_mean_per_day['stretch'].cumsum()
+original_mean_per_day['cumul_flowtime']=original_mean_per_day['turnaround_time'].cumsum()
 original_mean_per_day['exp_type']='Original'
 original_mean_per_day['finished_day']=original_mean_per_day.index
 original_mean_per_day
@@ -953,24 +1058,24 @@ original_mean_per_day
 
 #+RESULTS:
 #+begin_example
-         profile  submission_time  requested_number_of_resources  requested_time  success  ...  consumed_energy  metadata  cumul_stretch  exp_type  finished_day
-0    4680.281787     3.274729e+04                     211.958763    10743.340206      1.0  ...             -1.0       NaN       1.218336  Original             0
-1    8117.411523     1.130174e+05                     344.699588    18517.646091      1.0  ...             -1.0       NaN      16.470089  Original             1
-2    6108.622378     2.102735e+05                     557.034965    14721.986014      1.0  ...             -1.0       NaN      17.814290  Original             2
-3    5004.327869     2.923772e+05                     269.245902    12660.491803      1.0  ...             -1.0       NaN      18.848574  Original             3
-4    4278.254848     3.662487e+05                     103.822715    11140.518929      1.0  ...             -1.0       NaN      81.615280  Original             4
-5   12091.984436     4.562923e+05                     321.151751    27247.657588      1.0  ...             -1.0       NaN      82.637664  Original             5
-6     718.144346     5.652568e+05                      27.104367     3663.393412      1.0  ...             -1.0       NaN      83.639070  Original             6
-7     601.201295     6.457518e+05                      30.184815     3595.217775      1.0  ...             -1.0       NaN      90.398777  Original             7
-8     627.332325     7.314610e+05                      31.703480     3631.558749      1.0  ...             -1.0       NaN     146.123259  Original             8
-9     403.173373     8.184768e+05                      27.162945     3068.506302      1.0  ...             -1.0       NaN     147.538061  Original             9
-10    552.062965     9.036862e+05                      28.699803     3475.263581      1.0  ...             -1.0       NaN     151.103824  Original            10
-11    721.421343     9.993212e+05                      32.557612     3895.664179      1.0  ...             -1.0       NaN     238.483064  Original            11
-12    615.276573     1.071348e+06                      32.885904     3826.465281      1.0  ...             -1.0       NaN     432.536554  Original            12
-13    665.778123     1.164672e+06                      32.248834     3770.785899      1.0  ...             -1.0       NaN     433.540286  Original            13
-14  40794.045455     1.193953e+06                    1014.545455    82044.590909      1.0  ...             -1.0       NaN     434.801178  Original            14
+         profile  submission_time  requested_number_of_resources  requested_time  success  ...  metadata  cumul_stretch  cumul_flowtime  exp_type  finished_day
+0    4680.281787     3.274729e+04                     211.958763    10743.340206      1.0  ...       NaN       1.218336     4689.170268  Original             0
+1    8117.411523     1.130174e+05                     344.699588    18517.646091      1.0  ...       NaN      16.470089    13313.855493  Original             1
+2    6108.622378     2.102735e+05                     557.034965    14721.986014      1.0  ...       NaN      17.814290    19841.445058  Original             2
+3    5004.327869     2.923772e+05                     269.245902    12660.491803      1.0  ...       NaN      18.848574    24850.572598  Original             3
+4    4278.254848     3.662487e+05                     103.822715    11140.518929      1.0  ...       NaN      81.615280    36734.785183  Original             4
+5   12091.984436     4.562923e+05                     321.151751    27247.657588      1.0  ...       NaN      82.637664    49360.017161  Original             5
+6     718.144346     5.652568e+05                      27.104367     3663.393412      1.0  ...       NaN      83.639070    50078.748216  Original             6
+7     601.201295     6.457518e+05                      30.184815     3595.217775      1.0  ...       NaN      90.398777    50886.690825  Original             7
+8     627.332325     7.314610e+05                      31.703480     3631.558749      1.0  ...       NaN     146.123259    52866.413131  Original             8
+9     403.173373     8.184768e+05                      27.162945     3068.506302      1.0  ...       NaN     147.538061    53300.240928  Original             9
+10    552.062965     9.036862e+05                      28.699803     3475.263581      1.0  ...       NaN     151.103824    53983.947440  Original            10
+11    721.421343     9.993212e+05                      32.557612     3895.664179      1.0  ...       NaN     238.483064    57143.139160  Original            11
+12    615.276573     1.071348e+06                      32.885904     3826.465281      1.0  ...       NaN     432.536554    62743.599823  Original            12
+13    665.778123     1.164672e+06                      32.248834     3770.785899      1.0  ...       NaN     433.540286    63412.391606  Original            13
+14  40794.045455     1.193953e+06                    1014.545455    82044.590909      1.0  ...       NaN     434.801178   104485.758382  Original            14
 
-[15 rows x 16 columns]
+[15 rows x 17 columns]
 #+end_example
 
 Now appending both dataframes to do a single plot
@@ -983,39 +1088,39 @@ all_mean_per_day
 #+RESULTS:
 #+begin_example
 
-profile  submission_time  requested_number_of_resources  requested_time  success  ...  consumed_energy  metadata  cumul_stretch     exp_type  finished_day
-0    2573.714286     4.220214e+04                     927.699248     5684.321805      1.0  ...             -1.0       NaN       1.012409  Partitioned             0
-1    2801.280063     1.157234e+05                    1122.420886     6053.196203      1.0  ...             -1.0       NaN       2.613139  Partitioned             1
-2    2450.032573     2.092839e+05                    2091.205212     5608.371336      1.0  ...             -1.0       NaN       3.908199  Partitioned             2
-3    2772.454945     3.020108e+05                    1386.197802     5991.982418      1.0  ...             -1.0       NaN       5.040139  Partitioned             3
-4    3193.110617     3.717409e+05                     519.333757     7338.358551      1.0  ...             -1.0       NaN      11.916520  Partitioned             4
-5    3894.442786     4.583247e+05                     618.467662     8392.388060      1.0  ...             -1.0       NaN      12.916527  Partitioned             5
-6     733.539356     5.654086e+05                      41.365684     3664.833994      1.0  ...             -1.0       NaN      13.993757  Partitioned             6
-7     615.127288     6.454150e+05                     103.072657     3479.891292      1.0  ...             -1.0       NaN      27.762150  Partitioned             7
-8     521.676735     7.310340e+05                      73.166086     3314.072718      1.0  ...             -1.0       NaN      31.935969  Partitioned             8
-9     408.983340     8.184789e+05                      60.228920     3060.496630      1.0  ...             -1.0       NaN      32.966798  Partitioned             9
-10    543.242787     9.037806e+05                      81.857705     3358.208689      1.0  ...             -1.0       NaN      34.428982  Partitioned            10
-11    585.560347     1.005648e+06                     111.389313     3362.519909      1.0  ...             -1.0       NaN      56.299096  Partitioned            11
-12    695.165836     1.083062e+06                     116.461872     3582.675477      1.0  ...             -1.0       NaN      66.096654  Partitioned            12
-13    607.539887     1.164741e+06                      82.594993     3482.554492      1.0  ...             -1.0       NaN      67.098861  Partitioned            13
-14   3618.180428     1.227356e+06                    1136.000000     7267.743119      1.0  ...             -1.0       NaN      68.145098  Partitioned            14
-0    4680.281787     3.274729e+04                     211.958763    10743.340206      1.0  ...             -1.0       NaN       1.218336     Original             0
-1    8117.411523     1.130174e+05                     344.699588    18517.646091      1.0  ...             -1.0       NaN      16.470089     Original             1
-2    6108.622378     2.102735e+05                     557.034965    14721.986014      1.0  ...             -1.0       NaN      17.814290     Original             2
-3    5004.327869     2.923772e+05                     269.245902    12660.491803      1.0  ...             -1.0       NaN      18.848574     Original             3
-4    4278.254848     3.662487e+05                     103.822715    11140.518929      1.0  ...             -1.0       NaN      81.615280     Original             4
-5   12091.984436     4.562923e+05                     321.151751    27247.657588      1.0  ...             -1.0       NaN      82.637664     Original             5
-6     718.144346     5.652568e+05                      27.104367     3663.393412      1.0  ...             -1.0       NaN      83.639070     Original             6
-7     601.201295     6.457518e+05                      30.184815     3595.217775      1.0  ...             -1.0       NaN      90.398777     Original             7
-8     627.332325     7.314610e+05                      31.703480     3631.558749      1.0  ...             -1.0       NaN     146.123259     Original             8
-9     403.173373     8.184768e+05                      27.162945     3068.506302      1.0  ...             -1.0       NaN     147.538061     Original             9
-10    552.062965     9.036862e+05                      28.699803     3475.263581      1.0  ...             -1.0       NaN     151.103824     Original            10
-11    721.421343     9.993212e+05                      32.557612     3895.664179      1.0  ...             -1.0       NaN     238.483064     Original            11
-12    615.276573     1.071348e+06                      32.885904     3826.465281      1.0  ...             -1.0       NaN     432.536554     Original            12
-13    665.778123     1.164672e+06                      32.248834     3770.785899      1.0  ...             -1.0       NaN     433.540286     Original            13
-14  40794.045455     1.193953e+06                    1014.545455    82044.590909      1.0  ...             -1.0       NaN     434.801178     Original            14
+profile  submission_time  requested_number_of_resources  requested_time  success  ...  metadata  cumul_stretch  cumul_flowtime     exp_type  finished_day
+0    2573.714286     4.220214e+04                     927.699248     5684.321805      1.0  ...       NaN       1.012409     2575.554011  Partitioned             0
+1    2801.280063     1.157234e+05                    1122.420886     6053.196203      1.0  ...       NaN       2.613139     7312.683403  Partitioned             1
+2    2450.032573     2.092839e+05                    2091.205212     5608.371336      1.0  ...       NaN       3.908199    10458.263628  Partitioned             2
+3    2772.454945     3.020108e+05                    1386.197802     5991.982418      1.0  ...       NaN       5.040139    13405.469190  Partitioned             3
+4    3193.110617     3.717409e+05                     519.333757     7338.358551      1.0  ...       NaN      11.916520    22934.806624  Partitioned             4
+5    3894.442786     4.583247e+05                     618.467662     8392.388060      1.0  ...       NaN      12.916527    26829.251215  Partitioned             5
+6     733.539356     5.654086e+05                      41.365684     3664.833994      1.0  ...       NaN      13.993757    27568.159107  Partitioned             6
+7     615.127288     6.454150e+05                     103.072657     3479.891292      1.0  ...       NaN      27.762150    29694.507337  Partitioned             7
+8     521.676735     7.310340e+05                      73.166086     3314.072718      1.0  ...       NaN      31.935969    30417.073748  Partitioned             8
+9     408.983340     8.184789e+05                      60.228920     3060.496630      1.0  ...       NaN      32.966798    30840.132935  Partitioned             9
+10    543.242787     9.037806e+05                      81.857705     3358.208689      1.0  ...       NaN      34.428982    31416.097403  Partitioned            10
+11    585.560347     1.005648e+06                     111.389313     3362.519909      1.0  ...       NaN      56.299096    33599.495403  Partitioned            11
+12    695.165836     1.083062e+06                     116.461872     3582.675477      1.0  ...       NaN      66.096654    36409.690662  Partitioned            12
+13    607.539887     1.164741e+06                      82.594993     3482.554492      1.0  ...       NaN      67.098861    37018.396418  Partitioned            13
+14   3618.180428     1.227356e+06                    1136.000000     7267.743119      1.0  ...       NaN      68.145098    40713.670011  Partitioned            14
+0    4680.281787     3.274729e+04                     211.958763    10743.340206      1.0  ...       NaN       1.218336     4689.170268     Original             0
+1    8117.411523     1.130174e+05                     344.699588    18517.646091      1.0  ...       NaN      16.470089    13313.855493     Original             1
+2    6108.622378     2.102735e+05                     557.034965    14721.986014      1.0  ...       NaN      17.814290    19841.445058     Original             2
+3    5004.327869     2.923772e+05                     269.245902    12660.491803      1.0  ...       NaN      18.848574    24850.572598     Original             3
+4    4278.254848     3.662487e+05                     103.822715    11140.518929      1.0  ...       NaN      81.615280    36734.785183     Original             4
+5   12091.984436     4.562923e+05                     321.151751    27247.657588      1.0  ...       NaN      82.637664    49360.017161     Original             5
+6     718.144346     5.652568e+05                      27.104367     3663.393412      1.0  ...       NaN      83.639070    50078.748216     Original             6
+7     601.201295     6.457518e+05                      30.184815     3595.217775      1.0  ...       NaN      90.398777    50886.690825     Original             7
+8     627.332325     7.314610e+05                      31.703480     3631.558749      1.0  ...       NaN     146.123259    52866.413131     Original             8
+9     403.173373     8.184768e+05                      27.162945     3068.506302      1.0  ...       NaN     147.538061    53300.240928     Original             9
+10    552.062965     9.036862e+05                      28.699803     3475.263581      1.0  ...       NaN     151.103824    53983.947440     Original            10
+11    721.421343     9.993212e+05                      32.557612     3895.664179      1.0  ...       NaN     238.483064    57143.139160     Original            11
+12    615.276573     1.071348e+06                      32.885904     3826.465281      1.0  ...       NaN     432.536554    62743.599823     Original            12
+13    665.778123     1.164672e+06                      32.248834     3770.785899      1.0  ...       NaN     433.540286    63412.391606     Original            13
+14  40794.045455     1.193953e+06                    1014.545455    82044.590909      1.0  ...       NaN     434.801178   104485.758382     Original            14
 
-[30 rows x 16 columns]
+[30 rows x 17 columns]
 #+end_example
 
 Now finally plotting
@@ -1043,7 +1148,7 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 plt.clf()
 plt.figure(figsize=(FIG_WIDTH,FIG_HEIGHT))
 ax = sns.lineplot(x='finished_day', y='cumul_stretch', hue='exp_type', data=all_mean_per_day, linewidth=0.5)
-ax.set_ylabel('Cumulative Stretch')
+ax.set_ylabel('Cumulative Mean Stretch')
 ax.set_xlabel('Day')
 ax.legend(title='Experiment Type', frameon=True)
 fig = ax.get_figure()
@@ -1055,6 +1160,43 @@ FIG_PATH
 [[file:./figures/cumstretch_mustang_release_v0.2.0_66.png]]
 
 Yep.
+
+Plotting for the flow time
+
+#+begin_src python :results file :session *python* :exports both
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+FIG_PATH='./figures/cumflowtime_mustang_release_v0.2.0_66.png'
+
+SMALL_SIZE = 5
+MEDIUM_SIZE = 10
+BIGGER_SIZE = 12
+FIG_WIDTH = 5
+FIG_HEIGHT = 2
+
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=SMALL_SIZE)     # fontsize of the x and y labels
+plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
+plt.clf()
+plt.figure(figsize=(FIG_WIDTH,FIG_HEIGHT))
+ax = sns.lineplot(x='finished_day', y='cumul_flowtime', hue='exp_type', data=all_mean_per_day, linewidth=0.5)
+ax.set_ylabel('Cumulative Mean Flow Time')
+ax.set_xlabel('Day')
+ax.legend(title='Experiment Type', frameon=True)
+fig = ax.get_figure()
+fig.savefig(FIG_PATH, format='png', dpi=300, bbox_inches='tight')
+FIG_PATH
+#+end_src
+
+#+RESULTS:
+[[file:./figures/cumflowtime_mustang_release_v0.2.0_66.png]]
+
 * Passing the workload preprocessing to org
 I had previously used jupyter notebook to preprocess the workloads into two-week
 segments. This log entry is to pass the preprocessing script from jupyter to
