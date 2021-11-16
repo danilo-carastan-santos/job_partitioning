@@ -84,6 +84,7 @@ def list_experiments(workloads_path, experiments_description_path, type_of_job, 
 
     cmd = "ls " + workloads_path
     workloads_name = subprocess.getoutput(cmd).split("\n")
+    workloads_name.remove("trinity_formatted_release_v0.1.0")
     
     # Loop in the robin files and add them in the list_of_executions
     list_of_executions = []
@@ -123,7 +124,7 @@ def run_experiments(list_of_experiments):
         local_start_time = time.time()
         print("---------------------------------------------------------\n") 
         print("Executing the following: \n" + experiment + "\n")
-        os.system(experiment)
+        #os.system(experiment)
         local_finish_time = time.time()
         print("-- Simulation finished, duration: " + str(local_finish_time - local_start_time)  + " seconds\n")
     global_finish_time = time.time()
