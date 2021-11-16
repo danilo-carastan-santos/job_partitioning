@@ -41,7 +41,7 @@ def preparing_experiments(
                 os.system(cmd)
                 
                 for workload in list_of_workloads:
-                    output_path = results_path + "/" + workload
+                    output_path = results_path + "/" + workload.split(".json")[0]
                     cmd = "mkdir " + results_path
                     os.system(cmd)
                     robin_file = {
@@ -124,7 +124,7 @@ def run_experiments(list_of_experiments):
         local_start_time = time.time()
         print("---------------------------------------------------------\n") 
         print("Executing the following: \n" + experiment + "\n")
-        #os.system(experiment)
+        os.system(experiment)
         local_finish_time = time.time()
         print("-- Simulation finished, duration: " + str(local_finish_time - local_start_time)  + " seconds\n")
     global_finish_time = time.time()
@@ -152,10 +152,6 @@ def main():
     nix_env_path = "./nix-env.nix"
     output_dir = "./results"
     
-    # Path from inside the expe.yaml files
-    #platforms_dir_path = "../../../../../platforms"
-    #output_dir_path = "../../../../results" 
-    
     type_of_jobs = ["original", "partitioned"]
     random_seed = random.random()
 
@@ -179,16 +175,12 @@ def main():
                 os.system("mkdir ./results/" + type_of_job + "/" + length_of_partition)
 
                 workloads_path = "../workloads/json/" + type_of_job + "/two_weeks"
-                #workloads_dir_path = "../../../../../workloads/json/" + type_of_job + "/two_weeks"
 
                 preparing_experiments(
                     platforms_path,
-                    #platforms_dir_path,
                     workloads_path,
-                    #workloads_dir_path,
                     experiments_description_path,
                     output_dir,
-                    #output_dir_path,
                     type_of_job,
                     length_of_partition
                 )
