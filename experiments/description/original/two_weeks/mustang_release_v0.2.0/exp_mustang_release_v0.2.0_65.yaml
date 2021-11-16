@@ -1,9 +1,8 @@
-batcmd: 'batsim -p ../platforms/mustang_release_v0.2.0.xml -w ../workloads/json/original/two_weeks/mustang_release_v0.2.0_65.json
-  -e ./results/original/two_weeks/mustang_release_v0.2.0/out_mustang_release_v0 --forward-profiles-on-submission
-  --enable-dynamic-jobs --enable-profile-reuse '
-failure-timeout: '10'
-output-dir: ./results/original/two_weeks/mustang_release_v0.2.0/
-ready-timeout: '10'
+batcmd: 'batsim -p ../platforms/mustang_release_v0.2.0.xml -w ../workloads/json/original/two_weeks/mustang_release_v0.2.0/mustang_release_v0.2.0_65.json
+  -e ./results/original/two_weeks/mustang_release_v0.2.0/mustang_release_v0.2.0_65.json/out_mustang_release_v0 '
+failure-timeout: 10
+output-dir: ./results/original/two_weeks/mustang_release_v0.2.0/mustang_release_v0.2.0_65.json
+ready-timeout: 10
 schedcmd: batsched -v easy_bf_fast
-simulation-timeout: '604800'
-success-timeout: '3600'
+simulation-timeout: 604800
+success-timeout: 3600

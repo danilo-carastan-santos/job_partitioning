@@ -1,9 +1,8 @@
-batcmd: 'batsim -p ../platforms/SDSC-BLUE-2000-4.2-cln.xml -w ../workloads/json/partitioned/two_weeks/SDSC-BLUE-2000-4.2-cln_2.json
-  -e ./results/partitioned/two_weeks/SDSC-BLUE-2000-4.2-cln/out_SDSC-BLUE-2000-4 --forward-profiles-on-submission
-  --enable-dynamic-jobs --enable-profile-reuse '
-failure-timeout: '10'
-output-dir: ./results/partitioned/two_weeks/SDSC-BLUE-2000-4.2-cln/
-ready-timeout: '10'
+batcmd: 'batsim -p ../platforms/SDSC-BLUE-2000-4.2-cln.xml -w ../workloads/json/partitioned/two_weeks/SDSC-BLUE-2000-4.2-cln/SDSC-BLUE-2000-4.2-cln_2.json
+  -e ./results/partitioned/two_weeks/SDSC-BLUE-2000-4.2-cln/SDSC-BLUE-2000-4.2-cln_2.json/out_SDSC-BLUE-2000-4 '
+failure-timeout: 10
+output-dir: ./results/partitioned/two_weeks/SDSC-BLUE-2000-4.2-cln/SDSC-BLUE-2000-4.2-cln_2.json
+ready-timeout: 10
 schedcmd: batsched -v easy_bf_fast
-simulation-timeout: '604800'
-success-timeout: '3600'
+simulation-timeout: 604800
+success-timeout: 3600
