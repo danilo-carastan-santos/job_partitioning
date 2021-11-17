@@ -59,7 +59,7 @@ This problem is often solved by exclusively allocating a partition of the
 platform for small jobs. This strategy assures that ``small jobs keep flowing''
 in the patform, but it is still a strict strategy, since the ``flow rate'' is
 bound by the size of the partition for small jobs. We can perhaps use the whole
-platform to keep these small jobs flowing by partitioning the large jobs. 
+platform to keep these small jobs flowing by partitioning the large jobs.
 *** Is it not just job preemption?
 This idea is quite related to job preemption. There are some studies that use
 preemption in backfilling. This first one
@@ -334,7 +334,7 @@ def partition_job(job):
     ##AND just few seconds longer than the walltime
     if job['RUN_TIME'] >= job['REQUESTED_TIME']:
         job['RUN_TIME']=job['REQUESTED_TIME']
-    
+
     nb_partitions=int(np.ceil(job['RUN_TIME']/SEC_ONE_HOUR))
     subm_time=job['SUBMIT_TIME']
     job_id_prefix=str(int(job['JOB_ID']))
@@ -356,7 +356,7 @@ def partition_job(job):
 #    break
 df_long_jobs.apply(lambda job: partition_job(job), axis=1)
 
-#print(lst_partitioned_jobs)   
+#print(lst_partitioned_jobs)
 df_partitioned_jobs=pd.DataFrame(lst_partitioned_jobs)
 df_partitioned_jobs
 #df_partitioned_jobs.loc[df_partitioned_jobs['RUN_TIME']<=10]
@@ -447,13 +447,13 @@ df_partitioned_workload
 #+end_example
 
 #+begin_src python :results output :session *python* :exports both
-df_renamed_jobs.to_csv('./workloads/renamed_test_mustang_release_v0.2.0_66.swf', 
+df_renamed_jobs.to_csv('./workloads/renamed_test_mustang_release_v0.2.0_66.swf',
                                sep=' ', header=False, index=False)
 #+end_src
 
 Now, to generate the Batsim workload file
 
-#+begin_src shell :session *shell* :results output :exports both 
+#+begin_src shell :session *shell* :results output :exports both
  python swf_to_batsim_workload_compute_only.py -v -cs 1e6 -pf 38400 \
 ../workloads/renamed_test_mustang_release_v0.2.0_66.swf            \
 ../workloads/renamed_test_mustang_release_v0.2.0_66.json
@@ -475,17 +475,17 @@ I need to build ~SimGrid~ as well. Using stable build.
 ~SimGrid~ complained about boost. I installed ~conda install libboost~ and it
 stopped complaining.
 
-Intalled simgrid under ~$HOME/simgrid.~ 
+Intalled simgrid under ~$HOME/simgrid.~
 
 The installation batsim command
 
-#+BEGIN_SRC 
+#+BEGIN_SRC
 meson build --prefix=/home/users/dancarastan/batsim_build
 #+END_SRC
 
 Still complains about simgrid. Both exports below didn't work.
 
-#+BEGIN_SRC 
+#+BEGIN_SRC
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/users/dancarastan/simgrid/lib
 export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:/home/users/dancarastan/simgrid/lib
 #+END_SRC
@@ -495,7 +495,7 @@ It seems that ~BatSim~ needs simgrid installed as a ~pkgconfig~ package, wtf?
 I needed that ~pkg-config~ looked at the simgrid ~.pc~ file (the file that Millian
 made for simgrid). I did this by changing the environment variable
 
-#+BEGIN_SRC 
+#+BEGIN_SRC
 export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/home/users/dancarastan/pkgconfig
 #+END_SRC
 
@@ -506,7 +506,7 @@ recognizes simgrid!
 
 I'm still probaly going to need to set the export below
 
-#+BEGIN_SRC 
+#+BEGIN_SRC
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/users/dancarastan/simgrid/lib
 #+END_SRC
 
@@ -515,7 +515,7 @@ I had to install ~rapidjson~ with conda as well. Batsim didn't recognize it thou
 Built ~rapidjson~ from scratch, added updated ~LD_LIBRARY_PATH~, and added the ~.pc~
 file in the ~pkgconfig~ dir.
 
-#+BEGIN_SRC 
+#+BEGIN_SRC
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/users/dancarastan/rapidjson/lib
 #+END_SRC
 
@@ -531,7 +531,7 @@ The script only worked at PCAD frontend, as Olivier mentioned.
 Got this error when building ~proot~ (idk why i needed proot but is seems to be
 the case lol)
 
-#+BEGIN_SRC 
+#+BEGIN_SRC
 ./configure: line 6425: `                      ac_cv_prog_cc_stdc=$ac_cv_prog_cc_c89'
 builder for '/nix/store/zkys9kylllxsrhciwi8hjzvmdhzmf7hx-coreutils-8.32-x86_64-unknown-linux-musl.drv' failed with exit code 2
 cannot build derivation '/nix/store/n7aj12x10bmp9kbskwhckjjw9zmi90vs-proot-20190510-x86_64-unknown-linux-musl.drv': 1 dependencies couldn't be built
@@ -583,7 +583,7 @@ CONFIG_USER_NS=y
 #+END_EXAMPLE
 
 #+BEGIN_EXAMPLE
-(base) dancarastan@draco7:~/nix-user-chroot-companion$ ./nix-user-chroot.sh 
+(base) dancarastan@draco7:~/nix-user-chroot-companion$ ./nix-user-chroot.sh
 Need user namespace feature, you can enable it with the following command:
 sudo sysctl -w kernel.unprivileged_userns_clone=1
 #+END_EXAMPLE
@@ -616,3 +616,31 @@ and that makes total sense. Now i have to see with Serpa if they can activate
 user namespaces on the machines. Serpa will check this
 
 Serpa installed batsim and batsched with nix (apparently) on turing
+
+** [2021-11-17 mer.] Datamove-TT presentation
+Questions and discussions:
+
+- When do you decide to partition a job?
+  Directly at the arrival/start of ajob or when the platform becomes clogged?
+
+  R: At arrival time, in general. But, it can be a good idea to just partition when the platform
+     becomes clogged.
+
+- If we make the partitions at the arrival time, then all the partitions will be close in the queue?
+
+  R: No, the partitions will be sent to some place else, and will be got back when a previous partition
+  finishes. Maybe?
+
+- Do we really a partition? Why not to just delay?
+
+  - We can compare the difference between delaying and partitioning.
+  - If we delay, how long we should delay?
+  R: One good question here is that it solves partialy the waiting time of the small
+     jobs and the long. If you delay 100%, the large jobs we will have big waiting time, and
+     maybe we don't want that.
+
+- Did you try submitting the next part of the partitioned job when at 80% or 50% of the previous part ? (instead of 100% each time)
+
+  R: It can be good for reducing the waiting time of the next partitions, but then we need to
+     be carefull with new constraints, such as, not starting a next partition before the previous
+     one is finished.
