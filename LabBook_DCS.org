@@ -59,7 +59,7 @@ This problem is often solved by exclusively allocating a partition of the
 platform for small jobs. This strategy assures that ``small jobs keep flowing''
 in the patform, but it is still a strict strategy, since the ``flow rate'' is
 bound by the size of the partition for small jobs. We can perhaps use the whole
-platform to keep these small jobs flowing by partitioning the large jobs. 
+platform to keep these small jobs flowing by partitioning the large jobs.
 *** Is it not just job preemption?
 This idea is quite related to job preemption. There are some studies that use
 preemption in backfilling. This first one
@@ -410,7 +410,7 @@ def partition_job(job):
     ##AND just few seconds longer than the walltime
     if job['RUN_TIME'] >= job['REQUESTED_TIME']:
         job['RUN_TIME']=job['REQUESTED_TIME']
-    
+
     nb_partitions=int(np.ceil(job['RUN_TIME']/SEC_ONE_HOUR))
     subm_time=job['SUBMIT_TIME']
     job_id_prefix=str(int(job['JOB_ID']))
@@ -432,7 +432,7 @@ def partition_job(job):
 #    break
 df_long_jobs.apply(lambda job: partition_job(job), axis=1)
 
-#print(lst_partitioned_jobs)   
+#print(lst_partitioned_jobs)
 df_partitioned_jobs=pd.DataFrame(lst_partitioned_jobs)
 df_partitioned_jobs
 #df_partitioned_jobs.loc[df_partitioned_jobs['RUN_TIME']<=10]
@@ -523,13 +523,13 @@ df_partitioned_workload
 #+end_example
 
 #+begin_src python :results output :session *python* :exports both
-df_renamed_jobs.to_csv('./workloads/renamed_test_mustang_release_v0.2.0_66.swf', 
+df_renamed_jobs.to_csv('./workloads/renamed_test_mustang_release_v0.2.0_66.swf',
                                sep=' ', header=False, index=False)
 #+end_src
 
 Now, to generate the Batsim workload file
 
-#+begin_src shell :session *shell* :results output :exports both 
+#+begin_src shell :session *shell* :results output :exports both
  python swf_to_batsim_workload_compute_only.py -v -cs 1e6 -pf 38400 \
 ../workloads/renamed_test_mustang_release_v0.2.0_66.swf            \
 ../workloads/renamed_test_mustang_release_v0.2.0_66.json
@@ -551,17 +551,17 @@ I need to build ~SimGrid~ as well. Using stable build.
 ~SimGrid~ complained about boost. I installed ~conda install libboost~ and it
 stopped complaining.
 
-Intalled simgrid under ~$HOME/simgrid.~ 
+Intalled simgrid under ~$HOME/simgrid.~
 
 The installation batsim command
 
-#+BEGIN_SRC 
+#+BEGIN_SRC
 meson build --prefix=/home/users/dancarastan/batsim_build
 #+END_SRC
 
 Still complains about simgrid. Both exports below didn't work.
 
-#+BEGIN_SRC 
+#+BEGIN_SRC
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/users/dancarastan/simgrid/lib
 export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:/home/users/dancarastan/simgrid/lib
 #+END_SRC
@@ -571,7 +571,7 @@ It seems that ~BatSim~ needs simgrid installed as a ~pkgconfig~ package, wtf?
 I needed that ~pkg-config~ looked at the simgrid ~.pc~ file (the file that Millian
 made for simgrid). I did this by changing the environment variable
 
-#+BEGIN_SRC 
+#+BEGIN_SRC
 export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/home/users/dancarastan/pkgconfig
 #+END_SRC
 
@@ -582,7 +582,7 @@ recognizes simgrid!
 
 I'm still probaly going to need to set the export below
 
-#+BEGIN_SRC 
+#+BEGIN_SRC
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/users/dancarastan/simgrid/lib
 #+END_SRC
 
@@ -591,7 +591,7 @@ I had to install ~rapidjson~ with conda as well. Batsim didn't recognize it thou
 Built ~rapidjson~ from scratch, added updated ~LD_LIBRARY_PATH~, and added the ~.pc~
 file in the ~pkgconfig~ dir.
 
-#+BEGIN_SRC 
+#+BEGIN_SRC
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/users/dancarastan/rapidjson/lib
 #+END_SRC
 
@@ -607,7 +607,7 @@ The script only worked at PCAD frontend, as Olivier mentioned.
 Got this error when building ~proot~ (idk why i needed proot but is seems to be
 the case lol)
 
-#+BEGIN_SRC 
+#+BEGIN_SRC
 ./configure: line 6425: `                      ac_cv_prog_cc_stdc=$ac_cv_prog_cc_c89'
 builder for '/nix/store/zkys9kylllxsrhciwi8hjzvmdhzmf7hx-coreutils-8.32-x86_64-unknown-linux-musl.drv' failed with exit code 2
 cannot build derivation '/nix/store/n7aj12x10bmp9kbskwhckjjw9zmi90vs-proot-20190510-x86_64-unknown-linux-musl.drv': 1 dependencies couldn't be built
@@ -659,7 +659,7 @@ CONFIG_USER_NS=y
 #+END_EXAMPLE
 
 #+BEGIN_EXAMPLE
-(base) dancarastan@draco7:~/nix-user-chroot-companion$ ./nix-user-chroot.sh 
+(base) dancarastan@draco7:~/nix-user-chroot-companion$ ./nix-user-chroot.sh
 Need user namespace feature, you can enable it with the following command:
 sudo sysctl -w kernel.unprivileged_userns_clone=1
 #+END_EXAMPLE
@@ -711,7 +711,7 @@ df_partitioned.columns.values
 #+end_src
 
 #+RESULTS:
-: 
+:
 : >>> array(['job_id', 'workload_name', 'profile', 'submission_time',
 :        'requested_number_of_resources', 'requested_time', 'success',
 :        'final_state', 'starting_time', 'execution_time', 'finish_time',
@@ -752,14 +752,14 @@ JOB_NB_IDX=1
 PART_NB_IDX=2
 
 def parse_job_id_part(row, regex):
-    res=re.search(regex,row['job_id'])   
+    res=re.search(regex,row['job_id'])
     row['job_nb']=int(res.group(JOB_NB_IDX))
     row['part_nb']=int(res.group(PART_NB_IDX))
     return row
 
 def parse_job_id_orig(row, regex):
-    res=re.search(regex,row['job_id'])   
-    row['job_nb']=int(res.group(JOB_NB_IDX))    
+    res=re.search(regex,row['job_id'])
+    row['job_nb']=int(res.group(JOB_NB_IDX))
     return row
 
 ##Initializing job_nb and part_nb columns
@@ -1206,7 +1206,7 @@ I first read the workload and i put some indices in the jobs, taking into
 account their job submission: the ~week~ number of eh job, the ~week_day~ of the
 job, which is the day number local to its respective week, ~day~ and ~day_hour~,
 which have the same logic as the week, and ~two_week~ and ~two_day~ which
-categorize the jobs by blocks of two weeks and two days, respectively. 
+categorize the jobs by blocks of two weeks and two days, respectively.
 
 #+begin_src python :results value :session *python* :exports both
 import pandas as pd
@@ -1221,7 +1221,7 @@ workloads=['ANL-Intrepid-2009-1.swf','CTC-SP2-1996-3.1-cln.swf',
 
 #column_names=['r','p','q','tilde_p','status']
 column_names=["job_number",
-              "r", 
+              "r",
               "WaitTime",
               "p",
               "NumberOfAllocatedProcessors",
@@ -1379,7 +1379,7 @@ fine.
 #+begin_src python :results value :session *python* :exports both
 two_weeks_id=df.groupby('two_week').max().index.values
 
-for two_week_id in two_weeks_id:    
+for two_week_id in two_weeks_id:
     two_week=df.loc[df['two_week']==two_week_id]
     first_r=two_week.iloc[0]['r']
     two_week.loc[:,'r']=two_week['r']-first_r
@@ -1396,7 +1396,7 @@ I also split into two-day segments, but i'm not using it for the moment
 #+begin_example
 two_days_id=df.groupby('two_day').max().index.values
 
-for two_day_id in two_days_id:    
+for two_day_id in two_days_id:
     two_day=df.loc[df['two_day']==two_day_id]
     first_r=two_day.iloc[0]['r']
     two_day.loc[:,'r']=two_day['r']-first_r
@@ -1406,6 +1406,23 @@ for two_day_id in two_days_id:
     two_day[column_names].to_csv('./workloads/swf/days/'+WORKLOAD.replace('.swf','')+'/'+workload_filename,
                                  sep=' ',header=False)
     #break
-    
+
 print('Done!')
 #+end_example
+* <2021-12-15 mer.> Some brainstorming about job partitioning and energy
+With job partitioning we prioritize short jobs. We may counterbalance by
+processing these jobs in a lower frequency. Long jobs will run in normal
+frequency.
+
+It's kind of a two-objective scheduling: one is to increase scheduling
+performance and the other is to reduce the energy consumption.
+
+Reducing the frequency for small jobs will of course degrade scheduling
+performance, but small gains on energy consumption may mean a lot
+
+In this route, it would be nice to have an estimated cumulative curve of CO2eq
+emissions. How can we estimate CO2eq emissions in simulations?
+
+With job partitioning and reducing frequency of short jobs, we can gain on both
+objectives (scheduling perf and energy/co2) when compared to pure backfilling
+scheduling.
